@@ -42,6 +42,8 @@ def cost(state, control_input, penalty_lst):
     :return: cost matrix with for safety and rank objectives for each player
     """
     # check for collisions
+
+    # enforce boundary conditions for the track also
     collision_penalty_int = penalty_lst[-1]
     if collision_check(state, control_input):
         return np.array([[collision_penalty_int, collision_penalty_int],
@@ -82,11 +84,52 @@ def cost(state, control_input, penalty_lst):
 def cost_to_go(state, control_input, penalty_lst):
     """
     Compute the cost to go for each round
-    :param state:
+    :param state: matrix of distance, lane, and velocity for each player
     :param control_input:
     :param penalty_lst:
     :return:
     """
+
+def control_inputs(state, acceleration_maneuver_range):
+    """
+    Calculates the list of possible control inputs/actions for each player
+    :param state: number of players (columns) used as bounds for lane actions
+    :param acceleration_maneuver_range: bounds for acceleration actions
+    :return: list of control input arrays
+    """
+    control_input_action_lst = []
+    lane_maneuver_range = range(-(state.ndim-1), (state.ndim))
+    for i in lane_maneuver_range:
+        for j in acceleration_maneuver_range:
+            control_input_action_lst.append(np.array([[i, j]]))
+
+    return control_input_action_lst
+
+
+def round_nash_equilibrium(state, acceleration_maneuver_range, penalty_lst):
+    """
+    Compute the nash equilibrium policies and game value for the round given the game state and cost weightings
+    :param state: matrix of distance, lane, and velocity for each player
+    :param penalty_lst: list of costs for maintaining speed, deceleration, acceleration, turns, and collisions
+    :return: matrix of policies for each player, int value of the game for the round
+    """
+    # construct action space with payoffs
+    possible_control_input_lst = control_inputs(state, acceleration_maneuver_range)
+    action_space_mat = np.array()
+    for i in range(len(possible_control_input_lst)):
+        for j in range(len(possible_control_input_lst)):
+            control_input = np.array([possible_control_input_lst[i].T,possible_control_input_lst[j].T])
+            action_space_mat[i][j] = cost(state, control_input, penalty_lst)
+
+    # build system of equations for each player, each objective
+
+
+    # solve system of equations for player policies
+
+
+    # calculate game values for each policy
+
+
 
 if __name__ == "__main__":
     state = np.array([[0, 1],

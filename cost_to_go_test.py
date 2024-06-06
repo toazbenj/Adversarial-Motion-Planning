@@ -1,5 +1,5 @@
 import unittest
-from cost_to_go import collision_check, cost, cost_to_go
+from cost_to_go import collision_check, cost, cost_to_go, control_inputs
 import numpy as np
 
 
@@ -57,7 +57,7 @@ class MyTestCase(unittest.TestCase):
                                   [1, 1]])
         test_mat = cost(state, control_input, penalty_lst)
         np.testing.assert_array_equal(test_mat, np.array([[10, 10],
-                                             [10, 10]]))
+                                                          [10, 10]]))
         # p1 passes
         control_input = np.array([[1, 0],
                                   [1, 0]])
@@ -67,12 +67,21 @@ class MyTestCase(unittest.TestCase):
         control_input = np.array([[0, -1],
                                   [0, 1]])
         np.testing.assert_array_equal(cost(state, control_input, penalty_lst), np.array([[0, 3],
-                                                                            [1, 0]]))
+                                                                                         [1, 0]]))
         # both move forward
         control_input = np.array([[0, 0],
                                   [1, 1]])
         np.testing.assert_array_equal(cost(state, control_input, penalty_lst), np.array([[2, 2],
-                                                                            [1, 1]]))
+                                                                                         [1, 1]]))
+
+    def test_control_inputs(self):
+        state = np.array([[0, 0],
+                          [0, 1],
+                          [0, 0]])
+        acceleration_maneuver_range = range(-1, 2)
+        inputs = [np.array([[-1, -1]]), np.array([[-1, 0]]), np.array([[-1, 1]]), np.array([[0, -1]]),
+                  np.array([[0, 0]]), np.array([[0, 1]]), np.array([[1, -1]]), np.array([[1, 0]]), np.array([[1, 1]])]
+        np.testing.assert_array_equal(control_inputs(state, acceleration_maneuver_range), inputs)
 
 if __name__ == '__main__':
     unittest.main()
