@@ -44,24 +44,35 @@ def solve(payoff_matrix, iterations=10000):
     value_of_game = (np.max(row_cum_payoff) + np.min(col_cum_payoff)) / 2.0 / iterations
     return rowcnt / iterations, colcnt / iterations, value_of_game
 
+def find_admissible_ne(game, equilibra):
+    value_of_game = 100000
+    row_strategy = np.array([[],[]])
+    col_strategy = np.array([[],[]])
+    for eqm in equilibra:
+        row_strat_object = list(eqm.__getitem__(game.players[0]))
+        col_strat_object = list(eqm.__getitem__(game.players[1]))
+        row_strat = [float(p[1]) for p in row_strat_object]
+        col_strat = [float(p[1]) for p in col_strat_object]
+
+        new_value = np.transpose(row_strat) @ payoff_matrix @ col_strat
+        if new_value < value_of_game:
+            value_of_game = new_value
+            row_strategy = row_strat
+            col_strategy = col_strat
+
+    return row_strategy, col_strategy, value_of_game
 
 def solve_with_gambit(payoff_matrix):
     game = gbt.Game.from_arrays(payoff_matrix, np.transpose(payoff_matrix))
 
+    nash = gbt.nash.simpdiv_solve(game.mixed_strategy_profile(rational=True))
     # policies = game.mixed_strategy_profile(rational=True)
     # row_strategy = policies[game.players[0]]
     # col_strategy = policies[game.players[1]]
     # value_of_game = policies.payoff(game.players[1])
 
     result = gbt.nash.enummixed_solve(game, False, False)
-    eqm = result.equilibria.pop()
-    row_strategy = eqm[0]
-    col_strategy = eqm[1]
-    value_of_game = sum(row_strategy[i] * col_strategy[j] * payoff_matrix[i][j]
-                        for i in range(len(row_strategy))
-                        for j in range(len(col_strategy)))
-
-
+    row_strategy, col_strategy, value_of_game = find_admissible_ne(game, result.equilibria)
     return row_strategy, col_strategy, value_of_game
 
 
@@ -88,16 +99,27 @@ if __name__ == "__main__":
     row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
     show_results(row_strategy, col_strategy, value_of_game)
 
-    print("\n", "Gambit")
-    payoff_matrix = np.array([
-        [0, 1, -1],
-        [-1, 0, 1],
-        [1, -1, 0]])
-    row_strategy, col_strategy, value_of_game = solve_with_gambit(payoff_matrix)
+    payoff_matrix = np.array([[0, 1, 2, 3],
+                              [1, 0, 1, 2],
+                              [0, 1, 0, 1],
+                              [-1, 0, 1, 0]])
+    row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
     show_results(row_strategy, col_strategy, value_of_game)
 
-    payoff_matrix = np.array([[1, 4],
-                              [3, -1]])
-    row_strategy, col_strategy, value_of_game = solve_with_gambit(payoff_matrix)
-    show_results(row_strategy, col_strategy, value_of_game)
-
+    # print("\n", "Gambit")
+    # payoff_matrix = np.array([
+    #     [0, 1, -1],
+    #     [-1, 0, 1],
+    #     [1, -1, 0]])
+    # row_strategy, col_strategy, value_of_game = solve_with_gambit(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
+    #
+    # payoff_matrix = np.array([[1, 4],
+    #                           [3, -1]])
+    # row_strategy, col_strategy, value_of_game = solve_with_gambit(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
+    #
+    # payoff_matrix = np.array([[3, 0],
+    #                           [-1, 1]])
+    # row_strategy, col_strategy, value_of_game = solve_with_gambit(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
