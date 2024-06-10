@@ -1,3 +1,13 @@
+"""
+Cost_to_go.py
+Created by Ben Toaz on 6-7-24
+
+Builds the outcomes for every state in the drag race game and links them with the
+control input required to get between them. Assigns costs to each state and control input
+for use in prioritization. Finds nash equilibrium control input for each stage in the game.
+"""
+
+
 import numpy as np
 
 

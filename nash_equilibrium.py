@@ -1,8 +1,9 @@
 """
 Simple Zero Sum Game Solver
+Created by Ben Toaz on 6-7-24
 
 Iterative algorithm for finding game value and player policies,
-converted for use with numpy arrays from original source
+converted for use with numpy arrays from original source and experiments with Gambit library
 
 # https://code.activestate.com/recipes/496825-game-theory-payoff-matrix-solver/
 # https://chatgpt.com/share/4563dc68-176a-4577-862c-a9f8457a28ea

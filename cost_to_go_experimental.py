@@ -1,12 +1,102 @@
+"""
+Cost_to_go_experimental.py
+Created by Ben Toaz on 6-7-24
+
+Small scale implementation of matlab algorithm described in chapter 17 of Hespanha's NONCOOPERATIVE GAME THEORY.
+Hard coded values for 2 rounds, 2 players
+"""
+
 import numpy as np
 from cost_to_go import cost
 
+def collision_check(state, control_input1, control_input2):
+    """
+    Compares player positions and returns whether they are in the same position or collided during the next maneuver
+    :param state: matrix of distance, lane, and velocity for each player
+    :param control_input: matrix of lane change and acceleration for each player
+    :return: boolean
+    """
+
+    # pos check
+    if state[0][0] == state[0][1] and state[1][0] == state[1][1]:
+        return True
+
+    # maneuver check
+    # vehicles not turning
+    if control_input1[0][0] == 0 and control_input2[0][0] == 0:
+        return False
+
+    is_same_lane_change = (control_input1[0][0]) == (-control_input2[0][0])
+    is_same_speed = (control_input1[0][1] + state[2][0]) == (control_input2[0][1] + state[2][1])
+    is_same_distance = state[0][0] == state[0][1]
+    if is_same_lane_change and is_same_speed and is_same_distance:
+        return True
+
+    return False
+
+
+def cost(state, control_input1, control_input2):
+    """
+    Compute the cost matrix associated with the current game state for each player
+
+    :param state: matrix of distance, lane, and velocity for each player
+    :param control_input: matrix of lane change and acceleration for each player
+    :param penalty_lst: list of costs associated for maintaining speed, deceleration,
+    acceleration,  turns, and collisions
+    :return: cost matrix with for safety and rank objectives for each player
+    """
+
+    control_input_trans = np.array([control_input1.T, control_input2.T])
+    control_input = control_input_trans.T
+    penalty_lst = [0, 1, 2, 1, 10]
+
+    # check for collisions
+
+    # enforce boundary conditions for the track also
+    collision_penalty_int = penalty_lst[-1]
+    if collision_check(state, control_input1, control_input2):
+        return np.array([[collision_penalty_int, collision_penalty_int],
+                        [collision_penalty_int, collision_penalty_int]])
+    else:
+        # calculate rank
+        ranks = [1, 1]
+        p1_dist = state[0][0] + control_input1[0][1]
+        p2_dist = state[0][1] + control_input2[0][1]
+        if p1_dist > p2_dist:
+            ranks = [0, 1]
+        elif p1_dist < p2_dist:
+            ranks = [1, 0]
+
+        # calculate safety
+        safety = [0, 0]
+        for i in range(0, control_input.ndim-1):
+            risk = 0
+            # maintain speed
+            if control_input[0][1][i] == 0:
+                risk += penalty_lst[0]
+            # decelerate
+            elif control_input[0][1][i] < 0:
+                risk += penalty_lst[1]
+            # accelerate
+            elif control_input[0][1][i] > 0:
+                risk += penalty_lst[2]
+            # turn
+            if control_input[0][0][i] != 0:
+                risk += penalty_lst[3]
+
+            safety[i] = risk
+
+        return np.array([safety,
+                        ranks])
+
+
 def generate_states(k):
     """
-    Return numpy row array, each entry is nX by nU by nD, index by x, u, d, for cost
-    :return:
+    Calculate all possible states over k rounds
+    :param k: the number of stages in game
+    :return: list of all possible numpy array states
     """
-    # generate all possible states
+    # generate all possible states for a player
     player_state_lst = []
     for distance in range(0, k+1):
         for lane in range(0, 2):
@@ -14,6 +104,7 @@ def generate_states(k):
                 state = [distance, lane, velocity]
                 player_state_lst.append(state)
 
+    # make list of all combinations for both players
     state_lst = []
     for player_state1 in player_state_lst:
         for player_state2 in player_state_lst:
@@ -22,28 +113,87 @@ def generate_states(k):
 
     return state_lst
 
+def generate_control_inputs():
+    """
+    Make list of all possible player actions given space/movement constraints
+    :return: list of control input numpy arrays
+    """
+    control_input_lst = []
+    lane_maneuver_range = range(-1, 2)
+    acceleration_maneuver_range = range(-1, 2)
+    for i in lane_maneuver_range:
+        for j in acceleration_maneuver_range:
+            control_input_lst.append(np.array([[i, j]]))
+
+    return control_input_lst
 
 
-def generate_costs():
-    pass
-def generate_dynamics():
-    pass
+def generate_costs(state_lst, control_input_lst):
+    """
+    Calculate stage cost given each state and control input
+    :return: tensor of stage cost indexed by each state/control input
+    """
+
+    cost_lookup_mat = np.zeros((len(state_lst), len(control_input_lst), len(control_input_lst)), dtype=object)
+    for i in range(len(state_lst)):
+        for j in range(len(control_input_lst)):
+            for k in range(len(control_input_lst)):
+
+                cost_value_mat = cost(state_lst[i], control_input_lst[j], control_input_lst[k])
+                cost_lookup_mat[i, j, k] = cost_value_mat
+
+    return cost_lookup_mat
+
+def dynamics(state, control_input1, control_input2):
+    """
+    Calculate next state from given current state and control input
+    :param state: matrix of distance, lane, and velocity for each player
+    :param control_input1: player one lane and velocity change matrix
+    :param control_input2: player two lane and velocity change matrix
+    :return: next state matrix
+    """
+    control_input_trans = np.array([control_input1.T, control_input2.T])
+    control_input = control_input_trans.T
+
+    A = np.array([[1, 0, 1],
+                  [0, 1, 0],
+                  [0, 0, 1]])
+    B = np.array([[0, 1],
+                  [1, 0],
+                  [0, 1]])
+    next_state = np.dot(A, state) + np.dot(B, control_input)
+
+    return next_state
 
 
-def cost_to_go(k, cost, dynamics):
+def generate_dynamics(state_lst, control_input_lst):
+    """
+    Make lookup table for next state given current state and player actions, implemented as nested dictionary
+    :param state_lst:
+    :param control_input_lst:
+    :return:
+    """
+    dynamics_lookup_mat = np.zeros((len(state_lst), len(control_input_lst), len(control_input_lst)), dtype=object)
+    for i in range(len(state_lst)):
+        for j in range(len(control_input_lst)):
+            for k in range(len(control_input_lst)):
+                next_state_mat = dynamics(state_lst[i], control_input_lst[j], control_input_lst[k])
+                dynamics_lookup_mat[i, j, k] = next_state_mat
+
+    return dynamics_lookup_mat
+
+
+def generate_cost_to_go(k, cost, dynamics):
     # Initialize V with zeros
-    V = [None] * (k + 1)
-    V[k] = np.zeros((cost[k - 1].shape[0], 1))
+    V = np.zeros((k+1, len(dynamics), 2, 2))
 
     # Iterate backwards from k to 1
-    for k in range(k, 0, -1):
-        V_next = V[k]
-        cost_current = cost[k - 1]
-        dynamics_current = dynamics[k - 1]
+    for stage in range(k, 0, -1):
+        # V_next = V[k]
 
         # Calculate Vminmax and Vmaxmin
-        Vminmax = np.min(np.max(cost_current + V_next[dynamics_current], axis=2), axis=1)
-        Vmaxmin = np.max(np.min(cost_current + V_next[dynamics_current], axis=1), axis=2)
+        Vminmax = np.min(np.max(cost + V[stage].T * dynamics, axis=2), axis=1)
+        Vmaxmin = np.max(np.min(cost + V[stage] * dynamics, axis=1), axis=2)
 
         # Check if saddle-point can be found
         if not np.array_equal(Vminmax, Vmaxmin):
@@ -72,7 +222,23 @@ if __name__ == '__main__':
     # cost_to_go(k, G_cost_mat, F_dynamics_mat)
 
     states = generate_states(2)
-    print(states)
+    print(states, "\n")
+
+    control_inputs = generate_control_inputs()
+    print(control_inputs, "\n")
+
+    costs = generate_costs(states, control_inputs)
+    print(costs, "\n")
+
+    dynamics = generate_dynamics(states, control_inputs)
+    print(dynamics, "\n")
+
+    ctg = generate_cost_to_go(2, costs, dynamics)
+    print(ctg, "\n")
+
+
+
+
 
 # import numpy as np
 #

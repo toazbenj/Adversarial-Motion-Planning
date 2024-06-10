@@ -1,3 +1,12 @@
+"""
+Cost_to_go_test.py
+Created by Ben Toaz on 6-7-24
+
+Unit testing for cost_to_go.py
+"""
+
+
+
 import unittest
 from cost_to_go import collision_check, cost, cost_to_go, control_inputs
 import numpy as np
