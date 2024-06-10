@@ -9,7 +9,7 @@ Hard coded values for 2 rounds, 2 players
 import numpy as np
 from cost_to_go import cost
 
-def collision_check(state, control_input1, control_input2):
+def collision_check(state, control_input):
     """
     Compares player positions and returns whether they are in the same position or collided during the next maneuver
     :param state: matrix of distance, lane, and velocity for each player
@@ -18,24 +18,24 @@ def collision_check(state, control_input1, control_input2):
     """
 
     # pos check
-    if state[0][0] == state[0][1] and state[1][0] == state[1][1]:
+    if state[0][0][0] == state[0][0][1] and state[0][1][0] == state[0][1][1]:
         return True
 
     # maneuver check
     # vehicles not turning
-    if control_input1[0][0] == 0 and control_input2[0][0] == 0:
+    if control_input[0][0] == 0 and control_input[0][1] == 0:
         return False
 
-    is_same_lane_change = (control_input1[0][0]) == (-control_input2[0][0])
-    is_same_speed = (control_input1[0][1] + state[2][0]) == (control_input2[0][1] + state[2][1])
-    is_same_distance = state[0][0] == state[0][1]
+    is_same_lane_change = (control_input[0][0]) == (-control_input[0][1])
+    is_same_speed = (control_input[1][0] + state[0][2][0]) == (control_input[1][1] + state[0][2][1])
+    is_same_distance = state[0][0][0] == state[0][0][1]
     if is_same_lane_change and is_same_speed and is_same_distance:
         return True
 
     return False
 
 
-def cost(state, control_input1, control_input2):
+def safety_cost(state, control_input1, control_input2):
     """
     Compute the cost matrix associated with the current game state for each player
 
@@ -89,6 +89,35 @@ def cost(state, control_input1, control_input2):
         return np.array([safety,
                         ranks])
 
+def rank_cost(state, control_input):
+    """
+    Compute the cost matrix associated with the current game state for each player
+
+    :param state: matrix of distance, lane, and velocity for each player
+    :param control_input: matrix of lane change and acceleration for each player
+    :param penalty_lst: list of costs associated for maintaining speed, deceleration,
+    acceleration,  turns, and collisions
+    :return: single rank cost for both players, min and max with respect to player 1 position
+    """
+
+    penalty_lst = [0, 1, 2, 1, 10]
+
+    # check for collisions
+    # enforce boundary conditions for the track also
+    collision_penalty_int = penalty_lst[-1]
+    rank_cost = 0.5
+    if collision_check(state, control_input):
+        rank_cost = 0.5
+    else:
+        # calculate rank
+        p1_dist = state[0][0][0] + control_input[0][0]
+        p2_dist = state[0][0][1] + control_input[0][1]
+        if p1_dist > p2_dist:
+            rank_cost = 0
+        elif p1_dist < p2_dist:
+            rank_cost = 1
+
+    return rank_cost
 
 def generate_states(k):
     """
@@ -123,7 +152,9 @@ def generate_control_inputs():
     acceleration_maneuver_range = range(-1, 2)
     for i in lane_maneuver_range:
         for j in acceleration_maneuver_range:
-            control_input_lst.append(np.array([[i, j]]))
+            for k in lane_maneuver_range:
+                for l in acceleration_maneuver_range:
+                    control_input_lst.append(np.array([[i, k],[j,l]]))
 
     return control_input_lst
 
@@ -134,17 +165,17 @@ def generate_costs(state_lst, control_input_lst):
     :return: tensor of stage cost indexed by each state/control input
     """
 
-    cost_lookup_mat = np.zeros((len(state_lst), len(control_input_lst), len(control_input_lst)), dtype=object)
+
+    # fix cost dimensions
+    cost_lookup_mat = np.zeros((len(state_lst), len(control_input_lst)))
     for i in range(len(state_lst)):
         for j in range(len(control_input_lst)):
-            for k in range(len(control_input_lst)):
-
-                cost_value_mat = cost(state_lst[i], control_input_lst[j], control_input_lst[k])
-                cost_lookup_mat[i, j, k] = cost_value_mat
+            cost_value = rank_cost(state_lst[i], control_input_lst[j])
+            cost_lookup_mat[i, j] = cost_value
 
     return cost_lookup_mat
 
-def dynamics(state, control_input1, control_input2):
+def dynamics(state, control_input):
     """
     Calculate next state from given current state and control input
     :param state: matrix of distance, lane, and velocity for each player
@@ -152,8 +183,6 @@ def dynamics(state, control_input1, control_input2):
     :param control_input2: player two lane and velocity change matrix
     :return: next state matrix
     """
-    control_input_trans = np.array([control_input1.T, control_input2.T])
-    control_input = control_input_trans.T
 
     A = np.array([[1, 0, 1],
                   [0, 1, 0],
@@ -185,25 +214,34 @@ def generate_dynamics(state_lst, control_input_lst):
 
 def generate_cost_to_go(k, cost, dynamics):
     # Initialize V with zeros
-    V = np.zeros((k+1, len(dynamics), 2, 2))
+    V = np.zeros((k+1, len(dynamics)))
 
     # Iterate backwards from k to 1
     for stage in range(k, 0, -1):
-        # V_next = V[k]
+        # V_next = V[stage]
+
+        # new cost matrix with subsequent stage costs
+        new_cost = np.zeros(cost.shape)
+        for state_num in len(dynamics):
+            new_cost[state_num] = V[stage][state_num]
+
 
         # Calculate Vminmax and Vmaxmin
-        Vminmax = np.min(np.max(cost + V[stage].T * dynamics, axis=2), axis=1)
-        Vmaxmin = np.max(np.min(cost + V[stage] * dynamics, axis=1), axis=2)
+        Vminmax = np.min(np.max(cost + V[stage], axis=2), axis=1)
+        Vmaxmin = np.max(np.min(cost + V[stage], axis=1), axis=2)
 
         # Check if saddle-point can be found
         if not np.array_equal(Vminmax, Vmaxmin):
-            raise ValueError('Saddle-point cannot be found')
+            print("Must find mixed policy")
 
         # Assign Vminmax to V[k-1]
         V[k - 1] = Vminmax
 
     # If needed, convert V to desired format or print the result
     print("Round ", k, ": ", V)
+
+
+
 
 
 if __name__ == '__main__':
@@ -233,8 +271,8 @@ if __name__ == '__main__':
     dynamics = generate_dynamics(states, control_inputs)
     print(dynamics, "\n")
 
-    ctg = generate_cost_to_go(2, costs, dynamics)
-    print(ctg, "\n")
+    # ctg = generate_cost_to_go_ttt(2, costs, dynamics, states)
+    # print(ctg, "\n")
 
 
 
