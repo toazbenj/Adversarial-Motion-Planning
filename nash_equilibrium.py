@@ -88,22 +88,27 @@ def show_results(row_strategy, col_strategy, value_of_game):
 
 
 if __name__ == "__main__":
-    payoff_matrix = np.array([
-        [0, 1, -1],
-        [-1, 0, 1],
-        [1, -1, 0]])
-    row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
-    show_results(row_strategy, col_strategy, value_of_game)
+    # payoff_matrix = np.array([
+    #     [0, 1, -1],
+    #     [-1, 0, 1],
+    #     [1, -1, 0]])
+    # row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
+    #
+    # payoff_matrix = np.array([[1, 4],
+    #                           [3, -1]])
+    # row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
+    #
+    # payoff_matrix = np.array([[0, 1, 2, 3],
+    #                           [1, 0, 1, 2],
+    #                           [0, 1, 0, 1],
+    #                           [-1, 0, 1, 0]])
+    # row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
 
-    payoff_matrix = np.array([[1, 4],
-                              [3, -1]])
-    row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
-    show_results(row_strategy, col_strategy, value_of_game)
-
-    payoff_matrix = np.array([[0, 1, 2, 3],
-                              [1, 0, 1, 2],
-                              [0, 1, 0, 1],
-                              [-1, 0, 1, 0]])
+    payoff_matrix = np.array([[0, 1],
+                              [-1, 0]])
     row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
     show_results(row_strategy, col_strategy, value_of_game)
 

@@ -1,9 +1,14 @@
+"""
+Even more watered down ctg modeled after tic tac toe example in game theory text
+"""
+
+
 import numpy as np
 from cost_to_go_experimental import generate_dynamics, generate_control_inputs, generate_states, generate_costs, \
     dynamics
 
 
-def check_state_valid(state, k):
+def check_state_valid(state, ctrl, k):
     for pos in state[0]:
         if pos > k or pos < 0:
             return False
@@ -11,12 +16,38 @@ def check_state_valid(state, k):
         if lane > state.ndim-1 or lane < 0:
             return False
 
-    for velocity in state[2]:
-        if velocity > 1 or velocity < 0:
+    for velocity_count in range(state.ndim):
+        if state[2][velocity_count] > 1 or state[2][velocity_count] < 0:
             return False
-
+        # case of lane changes with no velocity
+        if state[2][velocity_count] == 0 and ctrl[1][velocity_count] == 0 and ctrl[0][velocity_count] != 0:
+            return False
     return True
 
+def collision_check(state, control_input):
+    """
+    Compares player positions and returns whether they are in the same position or collided during the next maneuver
+    :param state: matrix of distance, lane, and velocity for each player
+    :param control_input: matrix of lane change and acceleration for each player
+    :return: boolean
+    """
+
+    # pos check
+    if state[0][0] == state[0][1] and state[1][0] == state[1][1]:
+        return True
+
+    # maneuver check
+    # vehicles not turning
+    if control_input[0][0] == 0 and control_input[0][1] == 0:
+        return False
+
+    # is_same_lane_change = (control_input[0][0]) == (-control_input[0][1])
+    # is_same_speed = (control_input[1][0] + state[2][0]) == (control_input[1][1] + state[2][1])
+    # is_same_distance = state[0][0] == state[0][1]
+    # if is_same_lane_change and is_same_speed and is_same_distance:
+    #     return True
+
+    return False
 
 
 def possible_states(stage_count, initial_state, control_inputs):
@@ -27,13 +58,18 @@ def possible_states(stage_count, initial_state, control_inputs):
     :return:
     """
     possible_states = [[initial_state]]
-    round_states = []
     for k in range(1, stage_count+1):
         round_states = []
         for state in possible_states[k-1]:
             for ctrl in control_inputs:
+                # check if last state was a collision, don't propagate collisions
+                # not checking for collision in transit yet
+                if collision_check(state, ctrl):
+                    new_state = state
+                    round_states.append(new_state)
+                    break
                 new_state = dynamics(state, ctrl)
-                if check_state_valid(new_state, k):
+                if check_state_valid(new_state, ctrl, k):
                     round_states.append(new_state)
 
         possible_states.append(round_states)
@@ -79,18 +115,16 @@ def possible_states(stage_count, initial_state, control_inputs):
 if __name__ == '__main__':
     k =2
     states = generate_states(k)
-    print(states, "\n")
-
-
+    print("states ",states, "\n")
 
     control_inputs = generate_control_inputs()
-    print(control_inputs, "\n")
+    print("crtl ", control_inputs, "\n")
 
     init = np.array([[0,0],[0,1],[0,0]])
     possible_states = possible_states(k, init, control_inputs)
-    print(possible_states, "\n")
+    print("possible states ", possible_states, "\n")
 
-    costs = generate_costs(possible_states, control_inputs)
+    costs = generate_costs(possible_states, control_inputs, k)
     print(costs, "\n")
 
     # ctg = generate_cost_to_go_ttt(2, costs, dynamics, states)
