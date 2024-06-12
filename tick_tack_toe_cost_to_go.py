@@ -4,7 +4,7 @@ Even more watered down ctg modeled after tic tac toe example in game theory text
 
 
 import numpy as np
-from cost_to_go_experimental import generate_dynamics, generate_control_inputs, generate_states, generate_costs, \
+from cost_to_go_small import generate_dynamics, generate_control_inputs, generate_states, generate_costs, \
     dynamics
 
 
