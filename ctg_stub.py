@@ -26,6 +26,30 @@ def generate_cost_to_go(k, cost, dynamics):
     return V
 
 
+def optimal_actions(k, cost, ctg, dynamics, initial_state):
+    crtl1 = np.zeros((k+1,1))
+    crtl2 = np.zeros((k+1,1))
+    states = np.zeros((k+2))
+    states[0] = initial_state
+
+    for stage in range(k+1):
+        stage_cost = cost[stage]
+        stage_dynamics = dynamics[stage]
+
+        V_last = ctg[stage+1]
+        shape_tup = stage_cost.shape
+        repeat_int = np.prod(shape_tup)//np.prod(V_last.shape)
+        V_expanded = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
+
+        crtl1[stage] = np.nanmin(np.nanmax(stage_cost[int(states[stage])] + V_expanded[int(states[stage])], axis=1), axis=0)
+        crtl2[stage] = np.nanmax(np.nanmin(stage_cost[int(states[stage])] + V_expanded[int(states[stage])], axis=0), axis=0)
+
+        # gives state value but should be state number
+        states[stage + 1] = stage_dynamics[int(states[stage]), int(crtl1[stage]), int(crtl2[stage])]
+
+    return crtl1, crtl2, states
+
+
 # Example usage:
 K = 1
 nX = 5
@@ -38,25 +62,46 @@ nD = 2
 
 F = np.array([
     [
-        [[float('inf'), float('inf')], [float('inf'), float('inf')]],
-        [[float('inf'), float('inf')], [float('inf'), float('inf')]],
-        [[0, 1], [-1, 0]],
-        [[float('inf'), float('inf')], [float('inf'), float('inf')]],
-        [[float('inf'), float('inf')], [float('inf'), float('inf')]]
+        [[np.nan, np.nan], [np.nan, np.nan]],
+        [[np.nan, np.nan], [np.nan, np.nan]],
+        [[2, 3], [1, 2]],
+        [[np.nan, np.nan], [np.nan, np.nan]],
+        [[np.nan, np.nan], [np.nan, np.nan]]
     ],
     [
-        [[float('inf'), float('inf')], [float('inf'), float('inf')]],
-        [[-1, 0], [-2, 1]],
-        [[0, 1], [-1, 0]],
-        [[1, 2], [0, 1]],
-        [[float('inf'), float('inf')], [float('inf'), float('inf')]]
+        [[np.nan, np.nan], [np.nan, np.nan]],
+        [[1, 2], [0, 3]],
+        [[2, 3], [1, 2]],
+        [[3, 4], [2, 3]],
+        [[np.nan, np.nan], [np.nan, np.nan]]
     ]
 ])
 
-G = F
+G = np.array([
+    [
+        [[np.nan, np.nan], [np.nan, np.nan]],
+        [[np.nan, np.nan], [np.nan, np.nan]],
+        [[0, 1], [-1, 0]],
+        [[np.nan, np.nan], [np.nan, np.nan]],
+        [[np.nan, np.nan], [np.nan, np.nan]]
+    ],
+    [
+        [[np.nan, np.nan], [np.nan, np.nan]],
+        [[-1, 0], [-2, 1]],
+        [[0, 1], [-1, 0]],
+        [[1, 2], [0, 1]],
+        [[np.nan, np.nan], [np.nan, np.nan]]
+    ]
+])
 # Compute the cost-to-go values
 V = generate_cost_to_go(K, G, F)
 
 # Print the results
 for k in range(K + 2):
     print("V[{}] = {}".format(k, V[k]))
+
+# print('\n')
+u, d, states = optimal_actions(K, G, V, F, 2)
+print('u =', u)
+print('d =', d)
+print('x =', states)
