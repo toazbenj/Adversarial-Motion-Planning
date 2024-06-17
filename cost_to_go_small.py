@@ -159,20 +159,20 @@ def generate_control_inputs():
     return control_input_lst
 
 
-def generate_costs(stage_count, state_lst, control_input_lst):
+def generate_costs(state_lst, control_input_lst):
     """
     Calculate stage cost given each state and control input
     :return: tensor of stage cost indexed by each state/control input
     """
 
-    cost_lookup_mat = np.zeros((stage_count+1, len(state_lst), len(control_input_lst),
-                                    len(control_input_lst)), dtype=object)
-    for k in range(stage_count):
-        for i in range(len(state_lst)):
-            for j in range(len(control_input_lst)):
-                for l in range(len(control_input_lst)):
+    cost_lookup_mat = np.empty((len(state_lst), len(control_input_lst),
+                                       len(control_input_lst)), dtype=int) * np.nan
+    # for k in range(stage_count):
+    for i in range(len(state_lst)):
+        for j in range(len(control_input_lst)):
+            for l in range(len(control_input_lst)):
 
-                    cost_lookup_mat[k, i, j, l] = rank_cost(state_lst[i], control_input_lst[j], control_input_lst[k])
+                cost_lookup_mat[i, j, l] = rank_cost(state_lst[i], control_input_lst[j], control_input_lst[l])
 
     return cost_lookup_mat
 
@@ -199,39 +199,48 @@ def dynamics(state, control_input1, control_input2):
     return next_state
 
 
-def generate_dynamics(state_lst, control_input_lst, stage_count):
+def array_find(value_array, search_lst):
+    for idx, item in enumerate(search_lst):
+        if np.array_equal(value_array, item):
+            return idx
+    return -1
+
+
+def generate_dynamics(state_lst, control_input_lst):
     """
     Make lookup table for next state given current state and player actions, implemented as nested dictionary
     :param state_lst:
     :param control_input_lst:
     :return:
     """
-    dynamics_lookup_mat = np.zeros((stage_count+1, len(state_lst), len(control_input_lst),
-                                    len(control_input_lst)), dtype=object)
-    for k in range(stage_count):
-        for i in range(len(state_lst)):
-            for j in range(len(control_input_lst)):
-                for l in range(len(control_input_lst)):
-                    next_state_mat = dynamics(state_lst[i], control_input_lst[j], control_input_lst[l])
-                    dynamics_lookup_mat[k, i, j, l] = next_state_mat
+    dynamics_lookup_mat = np.empty((len(state_lst), len(control_input_lst),
+                                    len(control_input_lst)), dtype=int) * np.nan
+    # for k in range(stage_count):
+    for i in range(len(state_lst)):
+        for j in range(len(control_input_lst)):
+            for l in range(len(control_input_lst)):
+                next_state_mat = dynamics(state_lst[i], control_input_lst[j], control_input_lst[l])
+                next_state_index = array_find(next_state_mat, state_lst)
+                if next_state_index != -1:
+                    dynamics_lookup_mat[i, j, l] = next_state_index
 
     return dynamics_lookup_mat
 
 
-def generate_cost_to_go(k, cost, dynamics):
+def generate_cost_to_go(k, cost):
     # Initialize V with zeros
-    V = np.zeros((k + 2, len(dynamics[0])))
+    V = np.zeros((k + 2, len(cost)))
 
     # Iterate backwards from k to 1
     for stage in range(k, -1, -1):
         # Calculate Vminmax and Vmaxmin
         V_last = V[stage + 1]
-        shape_tup = cost[stage].shape
+        shape_tup = cost.shape
         repeat_int = np.prod(shape_tup) // np.prod(V_last.shape)
         V_expanded = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
 
-        Vminmax = np.min(np.max(cost[stage] + V_expanded, axis=2), axis=1)
-        Vmaxmin = np.max(np.min(cost[stage] + V_expanded, axis=1), axis=1)
+        Vminmax = np.min(np.max(cost[stage] + V_expanded, axis=1), axis=1)
+        Vmaxmin = np.max(np.min(cost[stage] + V_expanded, axis=2), axis=1)
 
         # Check if saddle-point can be found
         if not np.array_equal(Vminmax, Vmaxmin):
@@ -244,44 +253,43 @@ def generate_cost_to_go(k, cost, dynamics):
 
 
 def optimal_actions(k, cost, ctg, dynamics, initial_state):
-    crtl1 = np.zeros((k+1,1))
-    crtl2 = np.zeros((k+1,1))
-    states = np.zeros((k+2), dtype=object)
-    states[0] = initial_state
+    control1 = np.zeros(k+1, dtype=int)
+    control2 = np.zeros(k+1, dtype=int)
+    states_played = np.zeros(k+2, dtype=int)
+    states_played[0] = initial_state
 
     for stage in range(k+1):
-        stage_cost = cost[stage]
-        stage_dynamics = dynamics[stage]
-
         V_last = ctg[stage+1]
-        shape_tup = stage_cost.shape
+        shape_tup = cost.shape
         repeat_int = np.prod(shape_tup)//np.prod(V_last.shape)
         V_expanded = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
 
-        crtl1[stage] = np.nanmin(np.nanmax(stage_cost[int(states[stage])] + V_expanded[int(states[stage])], axis=1), axis=0)
-        crtl2[stage] = np.nanmax(np.nanmin(stage_cost[int(states[stage])] + V_expanded[int(states[stage])], axis=0), axis=0)
+        control1[stage] = np.argmin(np.max(cost[states_played[stage]] + V_expanded[states_played[stage]], axis=1), axis=0)
+        control2[stage] = np.argmax(np.min(cost[states_played[stage]] + V_expanded[states_played[stage]], axis=0), axis=0)
 
-        # gives state value but should be state number
-        states[stage + 1] = stage_dynamics[int(states[stage]), int(crtl1[stage]), int(crtl2[stage])]
+        # likely incorrect dynamics or cost, [0,2,2] yields NaN
+        # cost function does not take control input into account
+        states_played[stage + 1] = dynamics[states_played[stage], control1[stage], control2[stage]]
 
-    return crtl1, crtl2, states
+    return control1, control2, states
+
 
 if __name__ == '__main__':
     stage_count = 1
 
     states = generate_states(stage_count)
     control_inputs = generate_control_inputs()
-    costs = generate_costs(stage_count, states, control_inputs)
-    dynamics = generate_dynamics(states, control_inputs, stage_count)
 
-    ctg = generate_cost_to_go(stage_count, costs, dynamics)
+    costs = generate_costs(states, control_inputs)
+    dynamics = generate_dynamics(states, control_inputs)
+    # print(dynamics)
+
+    ctg = generate_cost_to_go(stage_count, costs)
     for k in range(stage_count + 2):
         print("V[{}] = {}".format(k, ctg[k]))
 
-    init = np.array([[0, 0],
-                     [0, 1],
-                     [0, 0]])
-    u, d, states = optimal_actions(stage_count, costs, ctg, dynamics, init)
+    init = 2
+    u, d, states_played = optimal_actions(stage_count, costs, ctg, dynamics, init)
     print('u =', u)
     print('d =', d)
-    print('x =', states)
+    print('x =', states_played)

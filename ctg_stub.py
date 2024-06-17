@@ -27,9 +27,9 @@ def generate_cost_to_go(k, cost, dynamics):
 
 
 def optimal_actions(k, cost, ctg, dynamics, initial_state):
-    crtl1 = np.zeros((k+1,1))
-    crtl2 = np.zeros((k+1,1))
-    states = np.zeros((k+2))
+    control1 = np.zeros(k+1)
+    control2 = np.zeros(k+1)
+    states = np.zeros(k+2)
     states[0] = initial_state
 
     for stage in range(k+1):
@@ -41,13 +41,13 @@ def optimal_actions(k, cost, ctg, dynamics, initial_state):
         repeat_int = np.prod(shape_tup)//np.prod(V_last.shape)
         V_expanded = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
 
-        crtl1[stage] = np.nanmin(np.nanmax(stage_cost[int(states[stage])] + V_expanded[int(states[stage])], axis=1), axis=0)
-        crtl2[stage] = np.nanmax(np.nanmin(stage_cost[int(states[stage])] + V_expanded[int(states[stage])], axis=0), axis=0)
-
         # gives state value but should be state number
-        states[stage + 1] = stage_dynamics[int(states[stage]), int(crtl1[stage]), int(crtl2[stage])]
+        control1[stage] = np.argmin(np.max(stage_cost[int(states[stage])] + V_expanded[int(states[stage])], axis=1), axis=0)
+        control2[stage] = np.argmax(np.min(stage_cost[int(states[stage])] + V_expanded[int(states[stage])], axis=0), axis=0)
 
-    return crtl1, crtl2, states
+        states[stage + 1] = stage_dynamics[int(states[stage]), int(control1[stage]), int(control2[stage])]
+
+    return control1, control2, states
 
 
 # Example usage:
@@ -76,6 +76,23 @@ F = np.array([
         [[np.nan, np.nan], [np.nan, np.nan]]
     ]
 ])
+
+# F = np.array([
+#     [
+#         [[np.nan, np.nan], [np.nan, np.nan]],
+#         [[np.nan, np.nan], [np.nan, np.nan]],
+#         [[0, 1], [-1, 0]],
+#         [[np.nan, np.nan], [np.nan, np.nan]],
+#         [[np.nan, np.nan], [np.nan, np.nan]]
+#     ],
+#     [
+#         [[np.nan, np.nan], [np.nan, np.nan]],
+#         [[-1, 0], [-2, 1]],
+#         [[0, 1], [-1, 0]],
+#         [[1, 2], [0, 1]],
+#         [[np.nan, np.nan], [np.nan, np.nan]]
+#     ]
+# ])
 
 G = np.array([
     [
