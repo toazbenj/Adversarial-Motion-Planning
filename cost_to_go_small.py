@@ -7,6 +7,7 @@ Hard coded values for 2 rounds, 2 players
 """
 
 import numpy as np
+from scipy.optimize import linprog
 
 def collision_check(state, control_input1, control_input2):
     """
@@ -120,6 +121,22 @@ def rank_cost(state, control_input1, control_input2):
     return rank_cost
 
 
+def check_state(state):
+    # invalid starting line conditions
+    # position
+    if state[0][0] == 0 and state[1][0] == 1:
+        return False
+    elif state[0][1] == 0 and state[1][1] == 0:
+        return False
+    # velocity
+    if state[0][0] == 0 and state[2][0] == 1:
+        return False
+    elif state[0][1] == 0 and state[2][1] == 1:
+        return False
+    else:
+        return True
+
+
 def generate_states(k):
     """
     Calculate all possible states over k rounds
@@ -128,7 +145,7 @@ def generate_states(k):
     """
     # generate all possible states for a player
     player_state_lst = []
-    for distance in range(0, k+1):
+    for distance in range(0, k+2):
         for lane in range(0, 2):
             for velocity in range(0, 2):
                 state = [distance, lane, velocity]
@@ -136,11 +153,16 @@ def generate_states(k):
 
     # make list of all combinations for both players
     state_lst = []
+    cnt = 0
     for player_state1 in player_state_lst:
         for player_state2 in player_state_lst:
-            state = np.array([player_state1, player_state2])
-            state_lst.append(state.T)
+            state = np.array([player_state1, player_state2]).T
 
+            if check_state(state):
+                state_lst.append(state)
+            # else:
+            #     cnt +=1
+            #     print(state,cnt,"\n")
     return state_lst
 
 
@@ -154,6 +176,7 @@ def generate_control_inputs():
     acceleration_maneuver_range = range(-1, 2)
     for i in lane_maneuver_range:
         for j in acceleration_maneuver_range:
+
             control_input_lst.append(np.array([i, j]))
 
     return control_input_lst
@@ -172,7 +195,10 @@ def generate_costs(state_lst, control_input_lst):
         for j in range(len(control_input_lst)):
             for l in range(len(control_input_lst)):
 
-                cost_lookup_mat[i, j, l] = rank_cost(state_lst[i], control_input_lst[j], control_input_lst[l])
+                next_state_mat = dynamics(state_lst[i], control_input_lst[j], control_input_lst[l])
+                next_state_index = array_find(next_state_mat, state_lst)
+                if next_state_index != -1:
+                    cost_lookup_mat[i, j, l] = rank_cost(state_lst[i], control_input_lst[j], control_input_lst[l])
 
     return cost_lookup_mat
 
@@ -227,6 +253,62 @@ def generate_dynamics(state_lst, control_input_lst):
     return dynamics_lookup_mat
 
 
+def mixed_policy_2d(payoff_matrix):
+    # Number of strategies for each player, need to differentiate which is which, fix
+    num_strategies1 = payoff_matrix.shape[0]
+    num_strategies2 = payoff_matrix.shape[1]
+
+    # Player A's problem: Maximize min expected payoff
+    c = np.zeros((num_strategies1+1))  # Minimize the variable representing the value of the game
+    c[-1] = -1
+    # Constraints for Player A
+    A_ub = np.zeros((num_strategies1, num_strategies2 + 1))
+    b_ub = np.zeros(num_strategies1)
+
+    for i in range(num_strategies2):
+        # check payoff_matrix size, broadcasting issue on second calculation in cycle
+        A_ub[i, :num_strategies1] = -payoff_matrix[:, i]
+        A_ub[i, -1] = 1
+
+    A_eq = np.ones((1, num_strategies2 + 1))
+    A_eq[0, -1] = 0
+    b_eq = np.array([1])
+
+    bounds = [(0, 1)] * num_strategies1 + [(None, None)]
+
+    # Solve Player A's linear programming problem
+    result_A = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+    # for i in range(num_strategies):
+    #     A_ub[i, :num_strategies] = -payoff_matrix[i, :]
+    #     A_ub[i, -1] = 1
+    #
+    # # Solve Player B's linear programming problem
+    # result_B = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+    return result_A.x[-1]
+
+
+def clean_matrix(mat):
+    # Remove rows/cols with all NaNs
+    mat = mat[~np.isnan(mat).all(axis=1)]
+    mat = mat[:, ~np.isnan(mat).all(axis=0)]
+    return mat
+
+
+def mixed_policy_3d(total_cost):
+    # cost is state x crtl x crtl
+    num_states = total_cost.shape[0]
+    ctg = np.zeros((num_states, 1))
+
+    for state in range(num_states):
+        clean_mat = clean_matrix(total_cost[state])
+        ctg[state] = mixed_policy_2d(clean_mat)
+
+    # ctg is state x 1
+    return ctg
+
+
 def generate_cost_to_go(k, cost):
     # Initialize V with zeros
     V = np.zeros((k + 2, len(cost)))
@@ -239,15 +321,16 @@ def generate_cost_to_go(k, cost):
         repeat_int = np.prod(shape_tup) // np.prod(V_last.shape)
         V_expanded = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
 
-        Vminmax = np.min(np.max(cost[stage] + V_expanded, axis=1), axis=1)
-        Vmaxmin = np.max(np.min(cost[stage] + V_expanded, axis=2), axis=1)
+        Vminmax = np.min(np.max(cost + V_expanded, axis=1), axis=1)
+        Vmaxmin = np.max(np.min(cost + V_expanded, axis=2), axis=1)
 
         # Check if saddle-point can be found
-        if not np.array_equal(Vminmax, Vmaxmin):
+        if np.array_equal(Vminmax, Vmaxmin):
+            # Assign Vminmax to V[k-1]
+            V[stage] = Vminmax
+        else:
             print("Must find mixed policy")
-
-        # Assign Vminmax to V[k-1]
-        V[stage] = Vminmax
+            V[stage] = mixed_policy_3d(cost + V_expanded)
 
     return V
 
@@ -287,9 +370,9 @@ if __name__ == '__main__':
     ctg = generate_cost_to_go(stage_count, costs)
     for k in range(stage_count + 2):
         print("V[{}] = {}".format(k, ctg[k]))
-
-    init = 2
-    u, d, states_played = optimal_actions(stage_count, costs, ctg, dynamics, init)
-    print('u =', u)
-    print('d =', d)
-    print('x =', states_played)
+    #
+    # init = 2
+    # u, d, states_played = optimal_actions(stage_count, costs, ctg, dynamics, init)
+    # print('u =', u)
+    # print('d =', d)
+    # print('x =', states_played)

@@ -9,10 +9,16 @@ converted for use with numpy arrays from original source and experiments with Ga
 # https://chatgpt.com/share/4563dc68-176a-4577-862c-a9f8457a28ea
 
 https://gambitproject.readthedocs.io/en/latest/pygambit.user.html#computing-nash-equilibria
+
+https://docs.scipy.org/doc/scipy-1.12.0/reference/generated/scipy.optimize.linprog.html
+https://chatgpt.com/share/63683362-de69-4a3b-952c-a31e3afcdf3f
 """
 
 import numpy as np
 import pygambit as gbt
+import numpy as np
+from scipy.optimize import linprog
+
 
 def solve(payoff_matrix, iterations=10000):
     'Return the oddments (mixed strategy ratios) for a given payoff matrix'
@@ -76,6 +82,41 @@ def solve_with_gambit(payoff_matrix):
     row_strategy, col_strategy, value_of_game = find_admissible_ne(game, result.equilibria)
     return row_strategy, col_strategy, value_of_game
 
+def scipy_solve(payoff_matrix):
+
+
+    # Number of strategies for each player
+    num_strategies = 2
+
+    # Player A's problem: Maximize min expected payoff
+    c = np.array([0, 0, -1])  # Minimize the variable representing the value of the game
+
+    # Constraints for Player A
+    A_ub = np.zeros((num_strategies, num_strategies + 1))
+    b_ub = np.zeros(num_strategies)
+
+    for i in range(num_strategies):
+        A_ub[i, :num_strategies] = -payoff_matrix[:, i]
+        A_ub[i, -1] = 1
+
+    A_eq = np.ones((1, num_strategies + 1))
+    A_eq[0, -1] = 0
+    b_eq = np.array([1])
+
+    bounds = [(0, 1)] * num_strategies + [(None, None)]
+
+    # Solve Player A's linear programming problem
+    result_A = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+    for i in range(num_strategies):
+        A_ub[i, :num_strategies] = -payoff_matrix[i, :]
+        A_ub[i, -1] = 1
+
+    # Solve Player B's linear programming problem
+    result_B = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+    return result_A.x[:num_strategies], result_B.x[:num_strategies], result_A.x[-1]
+
 
 def show_results(row_strategy, col_strategy, value_of_game):
     # print("Row player's mixed strategy:", row_strategy.round(3))
@@ -95,11 +136,13 @@ if __name__ == "__main__":
     # row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
     # show_results(row_strategy, col_strategy, value_of_game)
     #
-    # payoff_matrix = np.array([[1, 4],
-    #                           [3, -1]])
-    # row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
-    # show_results(row_strategy, col_strategy, value_of_game)
-    #
+    payoff_matrix = np.array([[1, 4],
+                              [3, -1]])
+    row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
+    show_results(row_strategy, col_strategy, value_of_game)
+
+    row_strategy, col_strategy, value_of_game = scipy_solve(payoff_matrix)
+    show_results(row_strategy, col_strategy, value_of_game)
     # payoff_matrix = np.array([[0, 1, 2, 3],
     #                           [1, 0, 1, 2],
     #                           [0, 1, 0, 1],
@@ -107,10 +150,10 @@ if __name__ == "__main__":
     # row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
     # show_results(row_strategy, col_strategy, value_of_game)
 
-    payoff_matrix = np.array([[0, 1],
-                              [-1, 0]])
-    row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
-    show_results(row_strategy, col_strategy, value_of_game)
+    # payoff_matrix = np.array([[0, 1],
+    #                           [-1, 0]])
+    # row_strategy, col_strategy, value_of_game = solve(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
 
     # print("\n", "Gambit")
     # payoff_matrix = np.array([
