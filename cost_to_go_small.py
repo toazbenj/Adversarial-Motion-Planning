@@ -123,12 +123,12 @@ def rank_cost(state, control_input1, control_input2):
 
 def check_state(state):
     # invalid starting line conditions
-    # position
+    # position (wrong lane)
     if state[0][0] == 0 and state[1][0] == 1:
         return False
     elif state[0][1] == 0 and state[1][1] == 0:
         return False
-    # velocity
+    # velocity (initial speed)
     if state[0][0] == 0 and state[2][0] == 1:
         return False
     elif state[0][1] == 0 and state[2][1] == 1:
@@ -253,40 +253,36 @@ def generate_dynamics(state_lst, control_input_lst):
     return dynamics_lookup_mat
 
 
-def mixed_policy_2d(payoff_matrix):
-    # Number of strategies for each player, need to differentiate which is which, fix
-    num_strategies1 = payoff_matrix.shape[0]
-    num_strategies2 = payoff_matrix.shape[1]
+def mixed_policy_2d(payoff_matrix, iterations=5000):
+    'Return the oddments (mixed strategy ratios) for a given payoff matrix'
+    payoff_matrix = np.array(payoff_matrix)
+    transpose = payoff_matrix.T
+    numrows, numcols = payoff_matrix.shape
+    row_cum_payoff = np.zeros(numrows)
+    col_cum_payoff = np.zeros(numcols)
+    colcnt = np.zeros(numcols)
+    rowcnt = np.zeros(numrows)
+    active_row = 0
 
-    # Player A's problem: Maximize min expected payoff
-    c = np.zeros((num_strategies1+1))  # Minimize the variable representing the value of the game
-    c[-1] = -1
-    # Constraints for Player A
-    A_ub = np.zeros((num_strategies1, num_strategies2 + 1))
-    b_ub = np.zeros(num_strategies1)
+    # iterates through row/col combinations, selects best play for each player with different combinations of rows/col,
+    # sums up number of times each row/col was selected and averages to find mixed policies
+    for _ in range(iterations):
+        # Update row count and cumulative payoffs
+        rowcnt[active_row] += 1
+        col_cum_payoff += payoff_matrix[active_row]
 
-    for i in range(num_strategies2):
-        # check payoff_matrix size, broadcasting issue on second calculation in cycle
-        A_ub[i, :num_strategies1] = -payoff_matrix[:, i]
-        A_ub[i, -1] = 1
+        # Choose the column with the minimum cumulative payoff
+        active_col = np.argmin(col_cum_payoff)
 
-    A_eq = np.ones((1, num_strategies2 + 1))
-    A_eq[0, -1] = 0
-    b_eq = np.array([1])
+        # Update column count and cumulative payoffs
+        colcnt[active_col] += 1
+        row_cum_payoff += transpose[active_col]
 
-    bounds = [(0, 1)] * num_strategies1 + [(None, None)]
+        # Choose the row with the maximum cumulative payoff
+        active_row = np.argmax(row_cum_payoff)
 
-    # Solve Player A's linear programming problem
-    result_A = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
-
-    # for i in range(num_strategies):
-    #     A_ub[i, :num_strategies] = -payoff_matrix[i, :]
-    #     A_ub[i, -1] = 1
-    #
-    # # Solve Player B's linear programming problem
-    # result_B = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
-
-    return result_A.x[-1]
+    value_of_game = (np.max(row_cum_payoff) + np.min(col_cum_payoff)) / 2.0 / iterations
+    return rowcnt / iterations, colcnt / iterations, round(value_of_game, 2)
 
 
 def clean_matrix(mat):
@@ -299,11 +295,11 @@ def clean_matrix(mat):
 def mixed_policy_3d(total_cost):
     # cost is state x crtl x crtl
     num_states = total_cost.shape[0]
-    ctg = np.zeros((num_states, 1))
+    ctg = np.zeros((num_states))
 
     for state in range(num_states):
         clean_mat = clean_matrix(total_cost[state])
-        ctg[state] = mixed_policy_2d(clean_mat)
+        _, _, ctg[state] = mixed_policy_2d(clean_mat)
 
     # ctg is state x 1
     return ctg
@@ -329,7 +325,7 @@ def generate_cost_to_go(k, cost):
             # Assign Vminmax to V[k-1]
             V[stage] = Vminmax
         else:
-            print("Must find mixed policy")
+            # print("Must find mixed policy")
             V[stage] = mixed_policy_3d(cost + V_expanded)
 
     return V
@@ -347,18 +343,18 @@ def optimal_actions(k, cost, ctg, dynamics, initial_state):
         repeat_int = np.prod(shape_tup)//np.prod(V_last.shape)
         V_expanded = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
 
-        control1[stage] = np.argmin(np.max(cost[states_played[stage]] + V_expanded[states_played[stage]], axis=1), axis=0)
-        control2[stage] = np.argmax(np.min(cost[states_played[stage]] + V_expanded[states_played[stage]], axis=0), axis=0)
+        control1[stage] = np.nanargmin(np.nanmax(cost[states_played[stage]] + V_expanded[states_played[stage]], axis=1),
+                                    axis=0)
+        control2[stage] = np.nanargmax(np.nanmin(cost[states_played[stage]] + V_expanded[states_played[stage]], axis=0),
+                                    axis=0)
 
-        # likely incorrect dynamics or cost, [0,2,2] yields NaN
-        # cost function does not take control input into account
         states_played[stage + 1] = dynamics[states_played[stage], control1[stage], control2[stage]]
 
-    return control1, control2, states
+    return control1, control2, states_played
 
 
 if __name__ == '__main__':
-    stage_count = 1
+    stage_count = 2
 
     states = generate_states(stage_count)
     control_inputs = generate_control_inputs()
@@ -370,9 +366,14 @@ if __name__ == '__main__':
     ctg = generate_cost_to_go(stage_count, costs)
     for k in range(stage_count + 2):
         print("V[{}] = {}".format(k, ctg[k]))
-    #
-    # init = 2
-    # u, d, states_played = optimal_actions(stage_count, costs, ctg, dynamics, init)
-    # print('u =', u)
-    # print('d =', d)
-    # print('x =', states_played)
+
+    init_state = np.array([[0, 1],
+                           [0, 1],
+                           [0, 0]])
+    init_state_index = array_find(init_state, states)
+    u, d, states_played = optimal_actions(stage_count, costs, ctg, dynamics, init_state_index)
+    print('u =', u)
+    print('d =', d)
+    print("States Played")
+    for i in range(len(states_played)):
+        print(i, states[states_played[i]])
