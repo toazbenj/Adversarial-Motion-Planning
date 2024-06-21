@@ -1,13 +1,12 @@
 """
-Cost_to_go_experimental.py
+Cost to Go Small
 Created by Ben Toaz on 6-7-24
 
 Small scale implementation of matlab algorithm described in chapter 17 of Hespanha's NONCOOPERATIVE GAME THEORY.
-Hard coded values for 2 rounds, 2 players
+Scenario is only for 2 players
 """
 
 import numpy as np
-from scipy.optimize import linprog
 
 def collision_check(state, control_input1, control_input2):
     """
@@ -122,6 +121,11 @@ def rank_cost(state, control_input1, control_input2):
 
 
 def check_state(state):
+    """
+    Verifies if state is possible
+    :param state: numpy array with state info
+    :return: bool if state is possible
+    """
     # invalid starting line conditions
     # position (wrong lane)
     if state[0][0] == 0 and state[1][0] == 1:
@@ -185,6 +189,9 @@ def generate_control_inputs():
 def generate_costs(state_lst, control_input_lst):
     """
     Calculate stage cost given each state and control input
+
+    :param state_lst: list of state arrays
+    :param control_input_lst: list of all possible control input arrays of lane change and acceleration values
     :return: tensor of stage cost indexed by each state/control input
     """
 
@@ -226,6 +233,12 @@ def dynamics(state, control_input1, control_input2):
 
 
 def array_find(value_array, search_lst):
+    """
+    Find the index of the array within a list of arrays
+    :param value_array: array to search for
+    :param search_lst: list to search within
+    :return: index of array, -1 if not found
+    """
     for idx, item in enumerate(search_lst):
         if np.array_equal(value_array, item):
             return idx
@@ -235,9 +248,9 @@ def array_find(value_array, search_lst):
 def generate_dynamics(state_lst, control_input_lst):
     """
     Make lookup table for next state given current state and player actions, implemented as nested dictionary
-    :param state_lst:
-    :param control_input_lst:
-    :return:
+    :param state_lst: list of all possible state arrays
+    :param control_input_lst: list of all possible control input arrays
+    :return: array of dynamics, 3D, dimensions state, control input 1, control input 2
     """
     dynamics_lookup_mat = np.empty((len(state_lst), len(control_input_lst),
                                     len(control_input_lst)), dtype=int) * np.nan
@@ -254,7 +267,12 @@ def generate_dynamics(state_lst, control_input_lst):
 
 
 def mixed_policy_2d(payoff_matrix, iterations=5000):
-    'Return the oddments (mixed strategy ratios) for a given payoff matrix'
+    """
+    Calculate the mixed policies and values for each player
+    :param payoff_matrix: game matrix with cost info
+    :param iterations: number of loops in calculation
+    :return: player one and two policies as lists of floats, game value
+    """
     payoff_matrix = np.array(payoff_matrix)
     transpose = payoff_matrix.T
     numrows, numcols = payoff_matrix.shape
@@ -286,26 +304,39 @@ def mixed_policy_2d(payoff_matrix, iterations=5000):
 
 
 def clean_matrix(mat):
-    # Remove rows/cols with all NaNs
+    """Remove rows/cols with all NaNs
+    :param mat: numpy array
+    :return: numpy array with no nans, retains relative position of real values
+    """
     mat = mat[~np.isnan(mat).all(axis=1)]
     mat = mat[:, ~np.isnan(mat).all(axis=0)]
     return mat
 
 
 def mixed_policy_3d(total_cost):
-    # cost is state x crtl x crtl
+    """
+    Find mixed saddle point game value for every state
+    :param total_cost: 3D cost array of state x control input x control input
+    :return: cost to go array of state x 1
+    """
+
     num_states = total_cost.shape[0]
-    ctg = np.zeros((num_states))
+    ctg = np.zeros(num_states)
 
     for state in range(num_states):
         clean_mat = clean_matrix(total_cost[state])
         _, _, ctg[state] = mixed_policy_2d(clean_mat)
 
-    # ctg is state x 1
     return ctg
 
 
 def generate_cost_to_go(k, cost):
+    """
+    Calculates cost to go for each state at each stage
+    :param k: stage count int
+    :param cost: cost array of state x control input x control input
+    :return: cost to go of stage x state
+    """
     # Initialize V with zeros
     V = np.zeros((k + 2, len(cost)))
 
@@ -332,6 +363,15 @@ def generate_cost_to_go(k, cost):
 
 
 def optimal_actions(k, cost, ctg, dynamics, initial_state):
+    """
+    Given initial state, play actual game, calculate best control inputs and tabulate state at each stage
+    :param k: stage count
+    :param cost: cost array of state x control input 1 x control input 2
+    :param ctg: cost to go array of stage x state
+    :param dynamics: next state array given control inputs of state x control input 1 x control input 2
+    :param initial_state: index of current state int
+    :return: list of best control input indicies for each player, states played in the game
+    """
     control1 = np.zeros(k+1, dtype=int)
     control2 = np.zeros(k+1, dtype=int)
     states_played = np.zeros(k+2, dtype=int)
@@ -367,7 +407,7 @@ if __name__ == '__main__':
     for k in range(stage_count + 2):
         print("V[{}] = {}".format(k, ctg[k]))
 
-    init_state = np.array([[0, 1],
+    init_state = np.array([[0, 0],
                            [0, 1],
                            [0, 0]])
     init_state_index = array_find(init_state, states)

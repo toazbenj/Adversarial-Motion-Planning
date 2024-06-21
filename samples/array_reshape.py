@@ -1,3 +1,9 @@
+"""
+Array Reshape
+
+Testing expanding array to fit given set of dimensions, repeats values as needed. Used for cost to go calculation
+"""
+
 import numpy as np
 
 # Original array

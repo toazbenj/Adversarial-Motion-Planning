@@ -1,10 +1,9 @@
 """
-Test.py
+Gambit Test
 Created by Ben Toaz on 6-7-24
 
 Additional testing with Gambit library (ultimately disappointing, correct NE but wrong row player mixed policy)
 """
-
 
 import numpy as np
 import pygambit as gbt
@@ -45,8 +44,6 @@ import pygambit as gbt
 # print("Expected Payoff for Player 1:", expected_payoff_player1)
 # print("Expected Payoff for Player 2:", expected_payoff_player2)
 
-
-import numpy as np
 
 # Example coordinates as numpy arrays
 coord1 = np.array([10, 20])

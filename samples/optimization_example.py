@@ -1,4 +1,6 @@
 '''
+Optimization Example
+
 Testing out scipy optimization for mixed policy calculations
 
 https://docs.scipy.org/doc/scipy-1.12.0/reference/generated/scipy.optimize.linprog.html

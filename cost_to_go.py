@@ -7,9 +7,7 @@ control input required to get between them. Assigns costs to each state and cont
 for use in prioritization. Finds nash equilibrium control input for each stage in the game.
 """
 
-
 import numpy as np
-
 
 def collision_check(state, control_input):
     """

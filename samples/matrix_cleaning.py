@@ -1,3 +1,11 @@
+"""
+Matrix Cleaning
+
+Testing functions to get rid of numpy nan values (impossible states) so that matrices can be passed into regular
+NE solvers
+"""
+
+
 # https://stackoverflow.com/questions/11620914/how-do-i-remove-nan-values-from-a-numpy-array
 import numpy as np
 

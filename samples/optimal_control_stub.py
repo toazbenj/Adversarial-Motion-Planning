@@ -1,3 +1,9 @@
+"""
+Optimal Control Stub
+
+Testing function to find best control input given current state and cost to go
+"""
+
 import numpy as np
 
 def optimal_actions(k, cost, ctg, dynamics, initial_state):

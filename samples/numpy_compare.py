@@ -1,3 +1,10 @@
+"""
+Numpy Compare
+
+Prototype for array_find function, testing how to find indices for value in a numpy array when value is also numpy array.
+Doesn't work. Working version uses numpy.equal
+"""
+
 import numpy as np
 
 # Example data

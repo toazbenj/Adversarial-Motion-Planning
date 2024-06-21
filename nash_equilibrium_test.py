@@ -8,6 +8,7 @@ Unit tests for nash_equilibrium.py
 import unittest
 import numpy as np
 from nash_equilibrium import scipy_solve, itr_solve
+
 class TestScipySolve(unittest.TestCase):
 
     def test_square_matrix_2x2(self):

@@ -1,3 +1,11 @@
+"""
+Potential Game Stub
+
+Functions for solving bimatrix games and finding mixed policies (not currently working)
+"""
+
+
+
 import numpy as np
 from scipy.optimize import linprog
 
@@ -125,6 +133,39 @@ def lemke_howson(payoff1, payoff2):
 
     return mixed_strategy1, mixed_strategy2, value
 
+def potential_function(s1, s2, A, B):
+    return np.sum(np.dot(np.dot(s1, A), s2.T) * B)
+
+
+def solve_bimatrix_potential_game(A, B):
+    m, n = A.shape
+
+    # Define the objective function for player 1
+    def obj1(s1):
+        return potential_function(s1, np.ones(n) / n, A, B)
+
+    # Define the objective function for player 2
+    def obj2(s2):
+        return potential_function(np.ones(m) / m, s2, A, B)
+
+    # Initial guesses for mixed strategies
+    x0_player1 = np.ones(m) / m
+    x0_player2 = np.ones(n) / n
+
+    # Minimize potential function for player 1
+    res_player1 = minimize(obj1, x0_player1, method='SLSQP', bounds=[(0, 1)] * m, options={'disp': False})
+
+    # Minimize potential function for player 2
+    res_player2 = minimize(obj2, x0_player2, method='SLSQP', bounds=[(0, 1)] * n, options={'disp': False})
+
+    if res_player1.success and res_player2.success:
+        s1_star = res_player1.x
+        s2_star = res_player2.x
+        value = potential_function(s1_star, s2_star, A, B)
+        return s1_star, s2_star, value
+    else:
+        return None, None, None  # No equilibrium found
+
 
 # Example usage
 A = np.array([[2, 30],
@@ -136,3 +177,12 @@ player1_strategy, player2_strategy, value = lemke_howson(A, B)
 print(f"Player 1 strategy: \n{player1_strategy}")
 print(f"Player 2 strategy: \n{player2_strategy}")
 print("Game Value: ", value)
+
+# s1_star, s2_star, value = solve_bimatrix_potential_game(A, B)
+#
+# if s1_star is not None:
+#     print("Player 1's mixed strategy:", s1_star)
+#     print("Player 2's mixed strategy:", s2_star)
+#     print("Value of the game:", value)
+# else:
+#     print("No Nash equilibrium found.")

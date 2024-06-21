@@ -1,3 +1,9 @@
+"""
+Tensor Multiplication
+
+Testing numpy matrix multiplication for 3+ dimensions
+"""
+
 import numpy as np
 import scipy
 
