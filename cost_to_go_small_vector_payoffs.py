@@ -1,9 +1,8 @@
 """
-Cost to Go Small
+Cost to Go Small Vector Payoffs
 Created by Ben Toaz on 6-7-24
 
-Small scale implementation of matlab algorithm described in chapter 17 of Hespanha's NONCOOPERATIVE GAME THEORY.
-Scenario is only for 2 players
+2 player drag race with different payoffs for each player
 """
 
 import numpy as np
@@ -105,17 +104,17 @@ def rank_cost(state, control_input1, control_input2):
     # check for collisions
     # enforce boundary conditions for the track also
     collision_penalty_int = penalty_lst[-1]
-    rank_cost = 0.5
+    rank_cost = np.array([[0.5, 0.5]])
     if collision_check(state, control_input1, control_input2):
-        rank_cost = 10
+        rank_cost = np.array([[10, 10]])
     else:
         # calculate rank
         p1_dist = state[0][0] + control_input1[1]
         p2_dist = state[0][1] + control_input2[1]
         if p1_dist > p2_dist:
-            rank_cost = 0
+            rank_cost = np.array([[0, 1]])
         elif p1_dist < p2_dist:
-            rank_cost = 1
+            rank_cost = np.array([[1, 0]])
 
     return rank_cost
 
@@ -196,7 +195,7 @@ def generate_costs(state_lst, control_input_lst):
     """
 
     cost_lookup_mat = np.empty((len(state_lst), len(control_input_lst),
-                                       len(control_input_lst)), dtype=int) * np.nan
+                                       len(control_input_lst), 2), dtype=int) * np.nan
     # for k in range(stage_count):
     for i in range(len(state_lst)):
         for j in range(len(control_input_lst)):
@@ -393,25 +392,35 @@ def optimal_actions(k, cost, ctg, dynamics, initial_state):
     return control1, control2, states_played
 
 
+def play_game(u, d, init_state_index):
+    pass
+
+
 if __name__ == '__main__':
-    stage_count = 2
+    stage_count = 1
 
     states = generate_states(stage_count)
     control_inputs = generate_control_inputs()
 
-    costs = generate_costs(states, control_inputs)
+    costs1 = generate_costs(states, control_inputs, 1)
+    costs2 = generate_costs(states, control_inputs, 2)
     dynamics = generate_dynamics(states, control_inputs)
     # print(dynamics)
 
-    ctg = generate_cost_to_go(stage_count, costs)
+    ctg1 = generate_cost_to_go(stage_count, costs1)
+    ctg2 = generate_cost_to_go(stage_count, costs2)
     for k in range(stage_count + 2):
-        print("V[{}] = {}".format(k, ctg[k]))
+        print("V1[{}] = {}".format(k, ctg1[k]))
+    for k in range(stage_count + 2):
+        print("V1[{}] = {}".format(k, ctg2[k]))
 
     init_state = np.array([[0, 0],
                            [0, 1],
                            [0, 0]])
     init_state_index = array_find(init_state, states)
-    u, d, states_played = optimal_actions(stage_count, costs, ctg, dynamics, init_state_index)
+    u = optimal_actions(stage_count, costs1, ctg1, dynamics, init_state_index)
+    d = optimal_actions(stage_count, costs2, ctg2, dynamics, init_state_index)
+    states_played = play_game(u, d, init_state_index)
     print('u =', u)
     print('d =', d)
     print("States Played")

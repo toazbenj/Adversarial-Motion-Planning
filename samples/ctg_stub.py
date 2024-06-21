@@ -4,9 +4,7 @@ CTG Stub
 Cost to go and optimal control input function testing with small, hardcoded dynamics and cost matrices
 """
 
-
 import numpy as np
-
 
 def generate_cost_to_go(k, cost, dynamics):
     # Initialize V with zeros
