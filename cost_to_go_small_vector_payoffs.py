@@ -19,11 +19,16 @@ def collision_check(state, control_input1, control_input2):
     if state[0][0] == state[0][1] and state[1][0] == state[1][1]:
         return True
 
-    # maneuver check
+    # next state check
+    next_state = dynamics(state, control_input1, control_input2)
+    if next_state[0][0] == next_state[0][1] and next_state[1][0] == next_state[1][1]:
+        return True
+
     # vehicles not turning
     if control_input1[0] == 0 and control_input2[0] == 0:
         return False
 
+    # maneuver check
     is_same_lane_change = (control_input1[0]) == (-control_input2[0])
     is_same_speed = (control_input1[1] + state[2][0]) == (control_input2[1] + state[2][1])
     is_same_distance = state[0][0] == state[0][1]
@@ -104,19 +109,19 @@ def rank_cost(state, control_input1, control_input2):
     # check for collisions
     # enforce boundary conditions for the track also
     collision_penalty_int = penalty_lst[-1]
-    rank_cost = np.array([[0.5, 0.5]])
+    rank_cost = [0.5, 0.5]
     if collision_check(state, control_input1, control_input2):
-        rank_cost = np.array([[10, 10]])
+        rank_cost = [10, 10]
     else:
         # calculate rank
         p1_dist = state[0][0] + control_input1[1]
         p2_dist = state[0][1] + control_input2[1]
         if p1_dist > p2_dist:
-            rank_cost = np.array([[0, 1]])
+            rank_cost = [0, 1]
         elif p1_dist < p2_dist:
-            rank_cost = np.array([[1, 0]])
+            rank_cost = [1, 0]
 
-    return rank_cost
+    return rank_cost[0], rank_cost[1]
 
 
 def check_state(state):
@@ -194,8 +199,10 @@ def generate_costs(state_lst, control_input_lst):
     :return: tensor of stage cost indexed by each state/control input
     """
 
-    cost_lookup_mat = np.empty((len(state_lst), len(control_input_lst),
-                                       len(control_input_lst), 2), dtype=int) * np.nan
+    cost1 = np.empty((len(state_lst), len(control_input_lst),
+                                       len(control_input_lst)), dtype=int) * np.nan
+    cost2 = cost1.copy()
+
     # for k in range(stage_count):
     for i in range(len(state_lst)):
         for j in range(len(control_input_lst)):
@@ -204,9 +211,9 @@ def generate_costs(state_lst, control_input_lst):
                 next_state_mat = dynamics(state_lst[i], control_input_lst[j], control_input_lst[l])
                 next_state_index = array_find(next_state_mat, state_lst)
                 if next_state_index != -1:
-                    cost_lookup_mat[i, j, l] = rank_cost(state_lst[i], control_input_lst[j], control_input_lst[l])
+                    cost1[i, j, l], cost2[i, j, l] = rank_cost(state_lst[i], control_input_lst[j], control_input_lst[l])
 
-    return cost_lookup_mat
+    return cost1, cost2
 
 
 def dynamics(state, control_input1, control_input2):
@@ -265,6 +272,7 @@ def generate_dynamics(state_lst, control_input_lst):
     return dynamics_lookup_mat
 
 
+# add argument to switch min/max players
 def mixed_policy_2d(payoff_matrix, iterations=5000):
     """
     Calculate the mixed policies and values for each player
@@ -329,7 +337,7 @@ def mixed_policy_3d(total_cost):
     return ctg
 
 
-def generate_cost_to_go(k, cost):
+def generate_cost_to_go(stage_count, costs1, costs2):
     """
     Calculates cost to go for each state at each stage
     :param k: stage count int
@@ -337,31 +345,46 @@ def generate_cost_to_go(k, cost):
     :return: cost to go of stage x state
     """
     # Initialize V with zeros
-    V = np.zeros((k + 2, len(cost)))
+    V1 = np.zeros((stage_count + 2, len(costs1)))
+    V2 = np.zeros((stage_count + 2, len(costs2)))
 
     # Iterate backwards from k to 1
-    for stage in range(k, -1, -1):
+    for stage in range(stage_count, -1, -1):
         # Calculate Vminmax and Vmaxmin
-        V_last = V[stage + 1]
-        shape_tup = cost.shape
+        V_last = V1[stage + 1]
+        shape_tup = costs1.shape
         repeat_int = np.prod(shape_tup) // np.prod(V_last.shape)
-        V_expanded = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
+        V_expanded1 = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
 
-        Vminmax = np.min(np.max(cost + V_expanded, axis=1), axis=1)
-        Vmaxmin = np.max(np.min(cost + V_expanded, axis=2), axis=1)
+        V_last = V2[stage + 1]
+        shape_tup = costs2.shape
+        repeat_int = np.prod(shape_tup) // np.prod(V_last.shape)
+        V_expanded2 = np.repeat(V_last[:, np.newaxis, np.newaxis], repeat_int).reshape(shape_tup)
+
+        Vminmax1 = np.min(np.max(costs1 + V_expanded1, axis=1), axis=1)
+        Vmaxmin1 = np.max(np.min(costs1 + V_expanded1, axis=2), axis=1)
+
+        Vminmax2 = np.min(np.max(costs2 + V_expanded2, axis=2), axis=1)
+        Vmaxmin2 = np.max(np.min(costs2 + V_expanded2, axis=1), axis=1)
 
         # Check if saddle-point can be found
-        if np.array_equal(Vminmax, Vmaxmin):
+        if np.array_equal(Vminmax1, Vmaxmin1):
             # Assign Vminmax to V[k-1]
-            V[stage] = Vminmax
+            V1[stage] = Vminmax1
         else:
             # print("Must find mixed policy")
-            V[stage] = mixed_policy_3d(cost + V_expanded)
+            V1[stage] = mixed_policy_3d(costs1 + V_expanded1)
 
-    return V
+        if np.array_equal(Vminmax2, Vmaxmin2):
+            # Assign Vminmax to V[k-1]
+            V2[stage] = Vminmax2
+        else:
+            # print("Must find mixed policy")
+            V2[stage] = mixed_policy_3d(costs2 + V_expanded2)
+    return V1, V2
 
 
-def optimal_actions(k, cost, ctg, dynamics, initial_state):
+def optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_state_index):
     """
     Given initial state, play actual game, calculate best control inputs and tabulate state at each stage
     :param k: stage count
@@ -374,7 +397,7 @@ def optimal_actions(k, cost, ctg, dynamics, initial_state):
     control1 = np.zeros(k+1, dtype=int)
     control2 = np.zeros(k+1, dtype=int)
     states_played = np.zeros(k+2, dtype=int)
-    states_played[0] = initial_state
+    states_played[0] = init_state_index
 
     for stage in range(k+1):
         V_last = ctg[stage+1]
@@ -402,24 +425,20 @@ if __name__ == '__main__':
     states = generate_states(stage_count)
     control_inputs = generate_control_inputs()
 
-    costs1 = generate_costs(states, control_inputs, 1)
-    costs2 = generate_costs(states, control_inputs, 2)
+    costs1, costs2 = generate_costs(states, control_inputs)
     dynamics = generate_dynamics(states, control_inputs)
-    # print(dynamics)
 
-    ctg1 = generate_cost_to_go(stage_count, costs1)
-    ctg2 = generate_cost_to_go(stage_count, costs2)
+    ctg1, ctg2 = generate_cost_to_go(stage_count, costs1, costs2)
     for k in range(stage_count + 2):
         print("V1[{}] = {}".format(k, ctg1[k]))
     for k in range(stage_count + 2):
-        print("V1[{}] = {}".format(k, ctg2[k]))
+        print("V2[{}] = {}".format(k, ctg2[k]))
 
     init_state = np.array([[0, 0],
                            [0, 1],
                            [0, 0]])
     init_state_index = array_find(init_state, states)
-    u = optimal_actions(stage_count, costs1, ctg1, dynamics, init_state_index)
-    d = optimal_actions(stage_count, costs2, ctg2, dynamics, init_state_index)
+    u, d = optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_state_index)
     states_played = play_game(u, d, init_state_index)
     print('u =', u)
     print('d =', d)
