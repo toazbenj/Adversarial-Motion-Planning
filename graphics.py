@@ -32,29 +32,33 @@ def plot_race(states_played, states):
     player2_velocities = [state[2] for state in player2_positions]
 
     # Create a plot with two subplots
-    fig, axs = plt.subplots(2, 1, figsize=(5, 5))
+    fig, axs = plt.subplots(2, 1, figsize=(10, 4))
+    plt.subplots_adjust(left=0.2)
 
     # Plot player positions (distance and lane)
-
     axs[0].plot(player1_distances, player1_lanes, label='Player 1', marker='o', linestyle='-')
     axs[0].plot(player2_distances, player2_lanes, label='Player 2', marker='s', linestyle='-')
     axs[0].invert_yaxis()
 
+    offset1 = 0.05
+    offset2 = 0.05
     last_coords1 = ()
     last_coords2 = ()
     for i in range(len(player1_positions)):
         txt = timestamps[i]
+
         if last_coords1 == (player1_distances[i], player1_lanes[i]):
-            axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]),
-                            (player1_distances[i] + 0.15, player1_lanes[i] + 0.05))
+            offset1 += 0.1
         else:
-            axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]), (player1_distances[i]+0.05, player1_lanes[i]+0.05))
+            offset1 = 0.05
+        axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]), (player1_distances[i]+offset1, player1_lanes[i]+0.05))
 
         if last_coords2 == (player2_distances[i], player2_lanes[i]):
-            axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]),
-                            (player2_distances[i] + 0.15, player2_lanes[i] - 0.05))
+            offset2 += 0.1
         else:
-            axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]), (player2_distances[i]+0.05, player2_lanes[i]-0.05))
+            offset2 = 0.05
+        axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]), (player2_distances[i]+offset2, player2_lanes[i]+0.05))
+
         last_coords1 = (player1_distances[i], player1_lanes[i])
         last_coords2 = (player2_distances[i], player2_lanes[i])
 
@@ -62,16 +66,16 @@ def plot_race(states_played, states):
     axs[0].set_xlabel('Distance')
     axs[0].set_ylabel('Lane')
     axs[0].set_title('Player Positions (Distance vs Lane)')
-    axs[0].legend()
+    axs[0].legend(loc='center right')
     axs[0].grid(False)
 
     # Plot player velocities
-    axs[1].plot(player1_velocities, label='Player 1 Velocity', marker='o', linestyle='-')
-    axs[1].plot(player2_velocities, label='Player 2 Velocity', marker='s', linestyle='-')
+    axs[1].plot(player1_velocities, label='Player 1', marker='o', linestyle='-')
+    axs[1].plot(player2_velocities, label='Player 2', marker='s', linestyle='-')
     axs[1].set_xlabel('Stage')
     axs[1].set_ylabel('Velocity')
     axs[1].set_title('Player Velocities over Time')
-    axs[1].legend()
+    axs[1].legend(loc='center right')
     axs[1].grid(False)
 
     # Show the plot
@@ -86,19 +90,19 @@ if __name__ == '__main__':
         np.array([[0, 0],
                   [0, 1],
                   [0, 0]]),
-        np.array([[1, 1],
-                  [0, 1],
-                  [1, 1]]),
-        np.array([[2, 1],
-                  [0, 1],
-                  [1, 0]]),
-        np.array([[3, 2],
-                  [1, 1],
-                  [1, 1]])
+        np.array([[0, 1],
+                  [0, 0],
+                  [0, 1]]),
+        np.array([[0, 2],
+                  [0, 0],
+                  [0, 1]]),
+        np.array([[0, 2],
+                  [0, 0],
+                  [0, 1]])
     ]
 
     # Example states_played (indices into the states list)
-    states_played = [0, 1, 2, 3]
+    states_played = [0, 1, 2]
 
     # Call the plot function
     plot_race(states_played, states)

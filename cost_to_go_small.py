@@ -7,6 +7,7 @@ Scenario is only for 2 players
 """
 
 import numpy as np
+from graphics import plot_race
 
 def collision_check(state, control_input1, control_input2):
     """
@@ -417,3 +418,5 @@ if __name__ == '__main__':
     print("States Played")
     for i in range(len(states_played)):
         print(i, states[states_played[i]])
+
+    plot_race(states_played, states)
