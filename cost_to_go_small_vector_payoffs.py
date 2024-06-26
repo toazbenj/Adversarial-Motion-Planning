@@ -52,10 +52,8 @@ def safety_cost(state, control_input1, control_input2, penalty_lst):
 
     control_input_trans = np.array([control_input1.T, control_input2.T])
     control_input = control_input_trans.T
-    penalty_lst = [0, 1, 2, 1, 10]
 
     # check for collisions
-
     # enforce boundary conditions for the track also
     collision_penalty_int = penalty_lst[-1]
     if collision_check(state, control_input1, control_input2):
@@ -99,7 +97,8 @@ def rank_cost(state, control_input1, control_input2, penalty_lst):
     Compute the cost matrix associated with the current game state for each player
 
     :param state: matrix of distance, lane, and velocity for each player
-    :param control_input: matrix of lane change and acceleration for each player
+    :param control_input1: matrix of lane change and acceleration for player 1
+    :param control_input2: matrix of lane change and acceleration for player 2
     :param penalty_lst: list of costs associated for maintaining speed, deceleration,
     acceleration,  turns, and collisions
     :return: single rank cost for both players, min and max with respect to player 1 position
@@ -115,10 +114,11 @@ def rank_cost(state, control_input1, control_input2, penalty_lst):
         # calculate rank
         p1_dist = state[0][0] + control_input1[1]
         p2_dist = state[0][1] + control_input2[1]
-        if p1_dist > p2_dist:
-            rank_cost = [0, 1]
-        elif p1_dist < p2_dist:
-            rank_cost = [1, 0]
+        # if p1_dist > p2_dist:
+        #     rank_cost = [0, 1]
+        # elif p1_dist < p2_dist:
+        #     rank_cost = [1, 0]
+        rank_cost = [p2_dist-p1_dist, p1_dist-p2_dist]
 
     return rank_cost[0], rank_cost[1]
 
@@ -424,10 +424,20 @@ def optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_stat
     return control1, control2, states_played
 
 
+def find_values(states_played, u, d, costs1, costs2):
+    values = [0, 0]
+    for idx in range(len(states_played)):
+        round_cost1 = costs1[states_played[idx], u[idx], d[idx]]
+        round_cost2 = costs2[states_played[idx], u[idx], d[idx]]
+        values[0] += round_cost1
+        values[1] += round_cost2
+    return values
+
+
 if __name__ == '__main__':
-    stage_count = 2
+    stage_count = 1
     # l,a: maintain, decelerate, accelerate, turn, collide
-    penalty_lst = [0, 1, 2, 1, 1]
+    penalty_lst = [0, 1, 2, 1, 2]
 
     states = generate_states(stage_count)
     control_inputs = generate_control_inputs()
@@ -451,5 +461,8 @@ if __name__ == '__main__':
     print("States Played")
     for i in range(len(states_played)):
         print(i, states[states_played[i]])
+
+    game_values = find_values(states_played, u, d, costs1, costs2)
+    print('Game values = ', game_values)
 
     plot_race(states_played, states)
