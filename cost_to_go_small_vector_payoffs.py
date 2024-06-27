@@ -435,9 +435,12 @@ def find_values(states_played, u, d, costs1, costs2):
 
 
 if __name__ == '__main__':
-    stage_count = 0
-    # l,a: maintain, decelerate, accelerate, turn, collide
-    penalty_lst = [0, 1, 2, 1, 0.99]
+    stage_count = 2
+    # maintain speed, decelerate, accelerate, turn, collide
+    penalty_lst = [0, 1, 2, 1, 0.5]
+    init_state = np.array([[0, 0],
+                           [0, 1],
+                           [0, 0]])
 
     states = generate_states(stage_count)
     control_inputs = generate_control_inputs()
@@ -445,33 +448,26 @@ if __name__ == '__main__':
     costs1, costs2 = generate_costs(states, control_inputs, penalty_lst, rank_cost)
     dynamics = generate_dynamics(states, control_inputs)
 
-    print("Cost to Go")
     ctg1, ctg2 = generate_cost_to_go(stage_count, costs1, costs2)
+    print("Cost to Go")
     for k in range(stage_count + 2):
         print("V1[{}] = {}".format(k, ctg1[k]))
     print('\n')
     for k in range(stage_count + 2):
         print("V2[{}] = {}".format(k, ctg2[k]))
-
     print('\n')
 
-    init_state = np.array([[0, 0],
-                           [0, 1],
-                           [0, 0]])
     init_state_index = array_find(init_state, states)
     u, d, states_played = optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_state_index)
-
     print("Control Inputs")
     print('u =', u)
     print('d =', d)
-
     print('\n')
 
     print("States Played")
     for i in range(len(states_played)):
         print("Stage {} =".format(i))
         print(states[states_played[i]])
-
     print('\n')
 
     game_values = find_values(states_played, u, d, costs1, costs2)
