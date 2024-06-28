@@ -27,15 +27,51 @@ def generate_cost_to_go(stage_count, costs1, costs2):
         V_expanded2 = expand_mat(V2[stage + 1], costs2)
 
         Vminmax1 = np.nanmin(np.nanmax(costs1 + V_expanded1, axis=1), axis=1)
-        # Vmaxmin1 = np.nanmax(np.nanmin(costs1 + V_expanded1, axis=2), axis=1)
-
         Vminmax2 = np.nanmin(np.nanmax(costs2 + V_expanded2, axis=2), axis=1)
-        # Vmaxmin2 = np.nanmax(np.nanmin(costs2 + V_expanded2, axis=1), axis=1)
 
         V1[stage] = Vminmax1
         V2[stage] = Vminmax2
 
     return V1, V2
+
+
+def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs):
+    """
+    Calculates cost to go for each state at each stage
+    :param k: stage count int
+    :param cost: cost array of state x control input x control input
+    :return: cost to go of stage x state
+    """
+    # Initialize cost to go with zeros
+    V1 = np.zeros((stage_count + 2, len(costs1)))
+    V2 = V1.copy()
+    policy1 = np.zeros((stage_count, len(control_inputs)))
+    policy2 = policy1.copy()
+
+    # Iterate backwards from k to 1
+    for stage in range(stage_count, -1, -1):
+        combined_cost1 = expand_mat(V1[stage + 1], costs1) + costs1
+        combined_cost2 = expand_mat(V2[stage + 1], costs2) + costs2
+
+        Vminmax1 = np.nanmin(np.nanmax(combined_cost1, axis=1), axis=1)
+        Vmaxmin1 = np.nanmax(np.nanmin(combined_cost2, axis=2), axis=1)
+
+        Vminmax2 = np.nanmin(np.nanmax(combined_cost2, axis=2), axis=1)
+        Vmaxmin2 = np.nanmax(np.nanmin(combined_cost2, axis=1), axis=1)
+
+        policy1, _, mixed_value1 = mixed_policy_3d(combined_cost1)
+        _, policy2, mixed_value2 = mixed_policy_3d(combined_cost2)
+
+        if Vminmax1 == Vmaxmin1:
+            V1[stage] = Vminmax1
+        else:
+            V1[stage] = mixed_value1
+        if Vminmax2 == Vmaxmin2:
+            V2[stage] = Vminmax2
+        else:
+            V1[stage] = mixed_value2
+
+    return V1, V2, policy1, policy2
 
 
 def optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_state_index):
@@ -100,7 +136,9 @@ if __name__ == '__main__':
     costs1, costs2 = generate_costs(states, control_inputs, penalty_lst, rank_cost)
     dynamics = generate_dynamics(states, control_inputs)
 
-    ctg1, ctg2 = generate_cost_to_go(stage_count, costs1, costs2)
+    # ctg1, ctg2 = generate_cost_to_go(stage_count, costs1, costs2)
+    ctg1, ctg2, policy1, policy2 = generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs)
+
     print("Cost to Go")
     for k in range(stage_count + 2):
         print("V1[{}] = {}".format(k, ctg1[k]))

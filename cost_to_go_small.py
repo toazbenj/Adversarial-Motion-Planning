@@ -146,7 +146,7 @@ def generate_cost_to_go(k, cost):
             V[stage] = Vminmax
         else:
             # print("Must find mixed policy")
-            V[stage] = mixed_policy_3d(cost + V_expanded)
+            _, _, V[stage] = mixed_policy_3d(cost + V_expanded)
 
     return V
 

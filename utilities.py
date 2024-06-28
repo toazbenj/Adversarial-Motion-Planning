@@ -219,19 +219,6 @@ def dynamics(state, control_input1, control_input2):
     return next_state
 
 
-def array_find(value_array, search_lst):
-    """
-    Find the index of the array within a list of arrays
-    :param value_array: array to search for
-    :param search_lst: list to search within
-    :return: index of array, -1 if not found
-    """
-    for idx, item in enumerate(search_lst):
-        if np.array_equal(value_array, item):
-            return idx
-    return -1
-
-
 def generate_dynamics(state_lst, control_input_lst):
     """
     Make lookup table for next state given current state and player actions, implemented as nested dictionary
@@ -319,18 +306,61 @@ def mixed_policy_3d(total_cost, is_min_max=True):
 
     num_states = total_cost.shape[0]
     ctg = np.zeros(num_states)
+    row_policy = np.zeros((num_states, total_cost.shape[1]))
+    col_policy = np.zeros((num_states, total_cost.shape[1]))
 
     for state in range(num_states):
         clean_mat = clean_matrix(total_cost[state])
-        _, _, ctg[state] = mixed_policy_2d(clean_mat, is_min_max=is_min_max)
-    return ctg
+        # cleaned matrix dimensions don't match number of control inputs, neither do returned policies
+        small_row_policy, small_col_policy, ctg[state] = mixed_policy_2d(clean_mat, is_min_max=is_min_max)
+
+        row_policy[state] = remap_values(total_cost[0], small_row_policy)
+        col_policy[state] = remap_values(total_cost[0], small_col_policy, is_row=False)
+
+    return row_policy, col_policy, ctg
 
 
 def clean_matrix(mat):
-    """Remove rows/cols with all NaNs
+    """Remove rows/cols with all NaNs, keep matrix shape
     :param mat: numpy array
     :return: numpy array with no nans, retains relative position of real values
     """
     mat = mat[~np.isnan(mat).all(axis=1)]
     mat = mat[:, ~np.isnan(mat).all(axis=0)]
     return mat
+
+
+def array_find(value_array, search_lst):
+    """
+    Find the index of the array within a list of arrays
+    :param value_array: array to search for
+    :param search_lst: list to search within
+    :return: index of array, -1 if not found
+    """
+    for idx, item in enumerate(search_lst):
+        if np.array_equal(value_array, item):
+            return idx
+    return -1
+
+
+def remap_values(mat, small_arr, is_row=True):
+    """
+    Map values from small arr to large arr, each large arr index corresponds to non nan value
+    in either row or col of mat
+    :param mat: mat of cost values
+    :param small_arr: list of probabilities from cleaned payoff matrix
+    :param is_row: policies for row or col
+    :return: arr with non nan value indexes with probabilities, rest set to 0
+    """
+    large_arr = np.zeros((len(mat)))
+    small_lst = list(small_arr)
+    if is_row:
+        mapping_arr = np.isfinite(mat[:, ~np.isnan(mat).all(axis=0)])[:,0]
+    else:
+        mapping_arr = np.isfinite(mat[~np.isnan(mat).all(axis=1)])[0]
+
+    for i in range(len(large_arr)):
+        if mapping_arr[i]:
+            large_arr[i] = small_lst.pop(0)
+        i += 1
+    return large_arr
