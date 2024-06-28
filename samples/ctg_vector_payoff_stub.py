@@ -7,7 +7,6 @@ Testing with tug of war example, different payoffs for each player
 
 import numpy as np
 
-
 def mixed_policy_2d(payoff_matrix, iterations=5000):
     """
     Calculate the mixed policies and values for each player
