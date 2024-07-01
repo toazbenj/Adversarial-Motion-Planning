@@ -93,13 +93,19 @@ def rank_cost(state, control_input1, control_input2, penalty_lst):
 
     # check for collisions
     if collision_check(state, control_input1, control_input2):
-        rank_cost = [penalty_lst[-1], penalty_lst[-1]]
+        rank_cost = np.array([penalty_lst[-1], penalty_lst[-1]])
     else:
         # calculate rank
         next_state = dynamics(state, control_input1, control_input2)
         p1_dist = next_state[0][0]
         p2_dist = next_state[0][1]
-        rank_cost = [p2_dist-p1_dist, p1_dist-p2_dist]
+        rank_cost = np.array([p2_dist-p1_dist, p1_dist-p2_dist])
+
+        p1_lane = next_state[1][0]
+        p2_lane = next_state[1][1]
+
+        if p1_lane == p2_lane:
+            rank_cost *= 2
 
     return rank_cost[0], rank_cost[1]
 
@@ -294,10 +300,20 @@ def mixed_policy_2d(payoff_matrix, iterations=5000, is_min_max=True):
             active_row = np.argmin(row_cum_payoff)
 
     value_of_game = (np.max(row_cum_payoff) + np.min(col_cum_payoff)) / 2.0 / iterations
-    return rowcnt / iterations, colcnt / iterations, round(value_of_game, 2)
+    return rowcnt/iterations, colcnt/iterations, round(value_of_game, 2)
 
 
-def mixed_policy_3d(total_cost, is_min_max=True):
+def check_end_state(state_idx, state_lst, stage_count):
+    state = state_lst[state_idx]
+    if state[0][0] == stage_count + 1:
+        return True
+    elif state[0][1] == stage_count + 1:
+        return True
+    else:
+        return False
+
+
+def mixed_policy_3d(total_cost, state_lst, stage_count, is_min_max=True):
     """
     Find mixed saddle point game value for every state
     :param total_cost: 3D cost array of state x control input x control input
@@ -310,14 +326,19 @@ def mixed_policy_3d(total_cost, is_min_max=True):
     col_policy = np.zeros((num_states, total_cost.shape[1]))
 
     for state in range(num_states):
-        clean_mat = clean_matrix(total_cost[state])
-        # cleaned matrix dimensions don't match number of control inputs, neither do returned policies
-        small_row_policy, small_col_policy, ctg[state] = mixed_policy_2d(clean_mat, is_min_max=is_min_max)
+        # if state is an ending state, no decisions made
+        if check_end_state(state, state_lst, stage_count):
+            row_policy[state] = 0
+            col_policy[state] = 0
+            ctg[state] = 0
+        else:
+            clean_mat = clean_matrix(total_cost[state])
+            small_row_policy, small_col_policy, ctg[state] = mixed_policy_2d(clean_mat, is_min_max=is_min_max)
 
-        row_policy[state] = remap_values(total_cost[0], small_row_policy)
-        col_policy[state] = remap_values(total_cost[0], small_col_policy, is_row=False)
+            row_policy[state] = remap_values(total_cost[state], small_row_policy)
+            col_policy[state] = remap_values(total_cost[state], small_col_policy, is_row=False)
 
-    return row_policy, col_policy, ctg
+    return np.around(row_policy,2), np.around(col_policy,2), ctg
 
 
 def clean_matrix(mat):
@@ -352,7 +373,7 @@ def remap_values(mat, small_arr, is_row=True):
     :param is_row: policies for row or col
     :return: arr with non nan value indexes with probabilities, rest set to 0
     """
-    large_arr = np.zeros((len(mat)))
+    large_arr = np.zeros(mat.shape[1])
     small_lst = list(small_arr)
     if is_row:
         mapping_arr = np.isfinite(mat[:, ~np.isnan(mat).all(axis=0)])[:,0]

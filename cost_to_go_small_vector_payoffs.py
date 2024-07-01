@@ -9,6 +9,7 @@ both players as minimizers
 import numpy as np
 from graphics import plot_race
 from utilities import *
+import random
 
 def generate_cost_to_go(stage_count, costs1, costs2):
     """
@@ -35,7 +36,7 @@ def generate_cost_to_go(stage_count, costs1, costs2):
     return V1, V2
 
 
-def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs):
+def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, state_lst):
     """
     Calculates cost to go for each state at each stage
     :param k: stage count int
@@ -44,32 +45,20 @@ def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs):
     """
     # Initialize cost to go with zeros
     V1 = np.zeros((stage_count + 2, len(costs1)))
-    V2 = V1.copy()
-    policy1 = np.zeros((stage_count, len(control_inputs)))
-    policy2 = policy1.copy()
+    V2 = np.zeros((stage_count + 2, len(costs1)))
+    policy1 = np.zeros((stage_count + 1, len(state_lst), len(control_inputs)))
+    policy2 = np.zeros((stage_count + 1, len(state_lst), len(control_inputs)))
 
     # Iterate backwards from k to 1
     for stage in range(stage_count, -1, -1):
         combined_cost1 = expand_mat(V1[stage + 1], costs1) + costs1
         combined_cost2 = expand_mat(V2[stage + 1], costs2) + costs2
 
-        Vminmax1 = np.nanmin(np.nanmax(combined_cost1, axis=1), axis=1)
-        Vmaxmin1 = np.nanmax(np.nanmin(combined_cost2, axis=2), axis=1)
+        policy1[stage], _, mixed_value1 = mixed_policy_3d(combined_cost1, state_lst, stage_count)
+        _, policy2[stage], mixed_value2 = mixed_policy_3d(combined_cost2, state_lst, stage_count)
 
-        Vminmax2 = np.nanmin(np.nanmax(combined_cost2, axis=2), axis=1)
-        Vmaxmin2 = np.nanmax(np.nanmin(combined_cost2, axis=1), axis=1)
-
-        policy1, _, mixed_value1 = mixed_policy_3d(combined_cost1)
-        _, policy2, mixed_value2 = mixed_policy_3d(combined_cost2)
-
-        if Vminmax1 == Vmaxmin1:
-            V1[stage] = Vminmax1
-        else:
-            V1[stage] = mixed_value1
-        if Vminmax2 == Vmaxmin2:
-            V2[stage] = Vminmax2
-        else:
-            V1[stage] = mixed_value2
+        V1[stage] = mixed_value1
+        V2[stage] = mixed_value2
 
     return V1, V2, policy1, policy2
 
@@ -84,8 +73,8 @@ def optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_stat
     :param initial_state: index of current state int
     :return: list of best control input indicies for each player, states played in the game
     """
-    control1 = np.zeros(k, dtype=int)
-    control2 = np.zeros(k, dtype=int)
+    control1 = np.zeros(stage_count+1, dtype=int)
+    control2 = np.zeros(stage_count+1, dtype=int)
     states_played = np.zeros(stage_count + 2, dtype=int)
     states_played[0] = init_state_index
 
@@ -97,6 +86,37 @@ def optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_stat
             np.nanmax(costs1[states_played[stage]] + V_expanded1[states_played[stage]], axis=1), axis=0)
         control2[stage] = np.nanargmin(
             np.nanmax(costs2[states_played[stage]] + V_expanded2[states_played[stage]], axis=0), axis=0)
+
+        states_played[stage + 1] = dynamics[states_played[stage], control1[stage], control2[stage]]
+
+    return control1, control2, states_played
+
+
+def play_game(policy1, policy2, dynamics, stage_count, init_state_index):
+    control1 = np.zeros(stage_count + 1, dtype=int)
+    control2 = np.zeros(stage_count + 1, dtype=int)
+    states_played = np.zeros(stage_count + 2, dtype=int)
+    states_played[0] = init_state_index
+
+    for stage in range(stage_count + 1):
+        pick1 = random.random()
+        pick2 = random.random()
+        current_policy1 = policy1[stage][states_played[stage]]
+        current_policy2 = policy2[stage][states_played[stage]]
+
+        total = 0
+        for i in range(len(current_policy1)):
+            total += current_policy1[i]
+            if total > pick1:
+                control1[stage] = i
+                break
+
+        total = 0
+        for i in range(len(current_policy2)):
+            total += current_policy2[i]
+            if total > pick2:
+                control2[stage] = i
+                break
 
         states_played[stage + 1] = dynamics[states_played[stage], control1[stage], control2[stage]]
 
@@ -123,9 +143,9 @@ def find_values(states_played, u, d, costs1, costs2):
 
 
 if __name__ == '__main__':
-    stage_count = 0
+    stage_count = 1
     # maintain speed, decelerate, accelerate, turn, collide
-    penalty_lst = [0, 1, 2, 1, 1]
+    penalty_lst = [0, 1, 2, 1, 2]
     init_state = np.array([[0, 0],
                            [0, 1],
                            [0, 0]])
@@ -137,7 +157,7 @@ if __name__ == '__main__':
     dynamics = generate_dynamics(states, control_inputs)
 
     # ctg1, ctg2 = generate_cost_to_go(stage_count, costs1, costs2)
-    ctg1, ctg2, policy1, policy2 = generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs)
+    ctg1, ctg2, policy1, policy2 = generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, states)
 
     print("Cost to Go")
     for k in range(stage_count + 2):
@@ -147,8 +167,18 @@ if __name__ == '__main__':
         print("V2[{}] = {}".format(k, ctg2[k]))
     print('\n')
 
+    print("Policies")
+    for k in range(stage_count + 1):
+        print("y[{}] = {}".format(k, policy1[k]))
+    print('\n')
+    for k in range(stage_count + 1):
+        print("z[{}] = {}".format(k, policy2[k]))
+    print('\n')
+
     init_state_index = array_find(init_state, states)
-    u, d, states_played = optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_state_index)
+    # u, d, states_played = optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_state_index)
+    u, d, states_played = play_game(policy1, policy2, dynamics, stage_count, init_state_index)
+
     print("Control Inputs")
     print('u =', u)
     print('d =', d)
