@@ -3,12 +3,8 @@ Potential Game Stub
 
 Functions for solving bimatrix games and finding mixed policies (not currently working)
 """
-
-
-
 import numpy as np
-from scipy.optimize import linprog
-
+from scipy.optimize import linprog, minimize
 
 def scipy_solve(A, B):
     num_strategies_A = A.shape[0]
@@ -47,136 +43,118 @@ def scipy_solve(A, B):
     return player1_strategy, player2_strategy, (res1.x[-1], res2.x[-1])
 
 
-def itr_solve(A, B, iterations=5000):
-    'Return the oddments (mixed strategy ratios) for a given payoff matrix'
-    transpose = payoff_matrix.T
-    numrows, numcols = payoff_matrix.shape
-    row_cum_payoff = np.zeros(numrows)
-    col_cum_payoff = np.zeros(numcols)
-    colcnt = np.zeros(numcols)
-    rowcnt = np.zeros(numrows)
-    active_row = 0
+def scipy_solve_quadratic(A, B):
+    m, n = A.shape
+    x0 = np.random.rand(n + m + 2)
 
-    # iterates through row/col combinations, selects best play for each player with different combinations of rows/col,
-    # sums up number of times each row/col was selected and averages to find mixed policies
-    for _ in range(iterations):
-        # Update row count and cumulative payoffs
-        rowcnt[active_row] += 1
-        col_cum_payoff += payoff_matrix[active_row]
+    # Construct H matrix
+    H_top = np.hstack((np.zeros((m, m)), A + B, np.zeros((m, 2))))
+    H_middle = np.hstack((A.T + B.T, np.zeros((n, n + 2))))
+    H_bottom = np.zeros((2, m + n + 2))
+    H = np.vstack((H_top, H_middle, H_bottom))
 
-        # Choose the column with the minimum cumulative payoff
-        active_col = np.argmin(col_cum_payoff)
+    # Construct c vector
+    c = np.hstack((np.zeros(m + n), -1, -1))
 
-        # Update column count and cumulative payoffs
-        colcnt[active_col] += 1
-        row_cum_payoff += transpose[active_col]
+    # Inequality constraints: Ain * x >= bin
+    Ain_top = np.hstack((np.zeros((m, m)), -A, np.ones((m, 1)), np.zeros((m, 1))))
+    Ain_bottom = np.hstack((-B.T, np.zeros((n, n + 1)), np.ones((n, 1))))
+    Ain = np.vstack((Ain_top, Ain_bottom))
+    bin = np.zeros(m + n)
 
-        # Choose the row with the maximum cumulative payoff
-        active_row = np.argmax(row_cum_payoff)
+    # Equality constraints: Aeq * x = beq
+    Aeq = np.vstack((np.hstack((np.ones(m), np.zeros(n + 2))), np.hstack((np.zeros(m), np.ones(n), 0, 0))))
+    beq = np.array([1, 1])
 
-    value_of_game = (np.max(row_cum_payoff) + np.min(col_cum_payoff)) / 2.0 / iterations
-    return rowcnt / iterations, colcnt / iterations, value_of_game
+    # Bounds for the variables
+    low = np.hstack((np.zeros(n + m), -np.inf, -np.inf))
+    high = np.hstack((np.ones(n + m), np.inf, np.inf))
 
+    bounds = [(low[i], high[i]) for i in range(len(low))]
 
-import numpy as np
+    # Objective function for minimize (since quadprog minimizes 0.5 * x^T H x + c^T x)
+    def objective(x):
+        # check c, transpose?
+        return 0.5 * np.dot(x.T, np.dot(H, x)) + np.dot(c, x)
 
+    # Constraints for minimization
+    cons = ({'type': 'ineq', 'fun': lambda x: np.dot(Ain, x) - bin},
+            {'type': 'eq', 'fun': lambda x: np.dot(Aeq, x) - beq})
 
-def lemke_howson(payoff1, payoff2):
-    m, n = payoff1.shape
-    A = np.hstack((np.eye(m), -payoff1))
-    B = np.hstack((-payoff2.T, np.eye(n)))
+    # Solve the quadratic program
+    # check options, match matlab?
+    result = minimize(objective, x0, method='SLSQP', bounds=bounds, constraints=cons, options={'ftol': 1e-8, 'eps': 1e-8})
 
-    labels = [0] * (m + n)
-    basis = [-1] * (m + n)
-    for s in range(m + n):
-        if s < m:
-            labels[s] = -s - 1
-        else:
-            labels[s] = s - m + 1
+    x = result.x
+    y = x[:m]
+    z = x[m:m + n]
+    p = x[m + n]
+    q = x[m + n + 1]
 
-    entering = -1
-    idx = 0
-
-    while entering != -1:
-        idx += 1
-        if idx % 2 == 1:
-            entering = np.argmax(A[m:, 0])
-            if A[m + entering, 0] <= 0:
-                return None
-        else:
-            entering = np.argmax(B[:, n])
-            if B[entering, n] <= 0:
-                return None
-
-        basis[entering] = labels[0]
-        labels[0] = -entering - 1
-
-        if entering < m:
-            idx = np.argwhere(basis[:n] == entering)
-            for v in range(n):
-                if v != idx:
-                    temp = A[:, v].copy()
-                    A[:, v] = B[:, basis[v] + n].copy()
-                    B[:, basis[v] + n] = temp.copy()
-        else:
-            idx = np.argwhere(basis[:n] == entering - m)
-            for v in range(n):
-                if v != idx:
-                    temp = B[:, v].copy()
-                    B[:, v] = A[:, basis[v]].copy()
-                    A[:, basis[v]] = temp.copy()
-
-    mixed_strategy1 = B[:n, n:m + n].dot(labels[:n])
-    mixed_strategy2 = A[:m, m:n + m].dot(labels[n:m + n])
-
-    value = mixed_strategy1.dot(payoff1).dot(mixed_strategy2)
-
-    return mixed_strategy1, mixed_strategy2, value
-
-def potential_function(s1, s2, A, B):
-    return np.sum(np.dot(np.dot(s1, A), s2.T) * B)
+    return y, z, p, q
 
 
-def solve_bimatrix_potential_game(A, B):
+def scipy_solve2(A, B):
     m, n = A.shape
 
-    # Define the objective function for player 1
-    def obj1(s1):
-        return potential_function(s1, np.ones(n) / n, A, B)
+    # Construct the objective function vector
+    c = np.zeros(m + n + 2)
+    c[-2:] = -1
 
-    # Define the objective function for player 2
-    def obj2(s2):
-        return potential_function(np.ones(m) / m, s2, A, B)
+    # Construct the inequality constraint matrix Ain and vector bin
+    Ain_top = np.hstack((np.zeros((m, m)), -A, np.ones((m, 1)), np.zeros((m, 1))))
+    Ain_bottom = np.hstack((-B.T, np.zeros((n, n + 1)), np.ones((n, 1))))
+    Ain = np.vstack((Ain_top, Ain_bottom))
+    bin = np.zeros(m + n)
 
-    # Initial guesses for mixed strategies
-    x0_player1 = np.ones(m) / m
-    x0_player2 = np.ones(n) / n
+    # Construct the equality constraint matrix Aeq and vector beq
+    Aeq = np.zeros((2, m + n + 2))
+    Aeq[0, :m] = 1
+    Aeq[1, m:m + n] = 1
+    beq = np.array([1, 1])
 
-    # Minimize potential function for player 1
-    res_player1 = minimize(obj1, x0_player1, method='SLSQP', bounds=[(0, 1)] * m, options={'disp': False})
+    # Define the bounds for the variables
+    bounds = [(0, 1)] * (m + n) + [(-np.inf, np.inf), (-np.inf, np.inf)]
 
-    # Minimize potential function for player 2
-    res_player2 = minimize(obj2, x0_player2, method='SLSQP', bounds=[(0, 1)] * n, options={'disp': False})
+    # Solve the linear program
+    result = linprog(c, A_ub=Ain, b_ub=bin, A_eq=Aeq, b_eq=beq, bounds=bounds, method='highs')
 
-    if res_player1.success and res_player2.success:
-        s1_star = res_player1.x
-        s2_star = res_player2.x
-        value = potential_function(s1_star, s2_star, A, B)
-        return s1_star, s2_star, value
+    if result.success:
+        x = result.x
+        y = x[:m]
+        z = x[m:m + n]
+        p = x[m + n]
+        q = x[m + n + 1]
+        return y, z, p, q
     else:
-        return None, None, None  # No equilibrium found
+        raise ValueError("Linear programming did not converge")
 
 
 # Example usage
-A = np.array([[2, 30],
-              [0, 8]])
-B = np.array([[2, 0],
-              [30, 8]])
+# A = np.array([[2, 30],
+#               [0, 8]])
+# B = np.array([[2, 0],
+#               [30, 8]])
+# A = np.array([[-2, 1],
+#               [0, -1]])
+# B = np.array([[-1, 2],
+#               [3, -2]])
+
+A = np.array([[2, 0, 1],
+              [2, -1, 0],
+              [2, -2, 2]])
+B = np.array([[-2, 0, -1],
+              [2, 1, 0],
+              [2, 2, 2]])
+
 # player1_strategy, player2_strategy, value = scipy_solve(A, B)
-player1_strategy, player2_strategy, value = lemke_howson(A, B)
+player1_strategy, player2_strategy, value1, value2 = scipy_solve2(A, B)
+
 print(f"Player 1 strategy: \n{player1_strategy}")
 print(f"Player 2 strategy: \n{player2_strategy}")
-print("Game Value: ", value)
+print("Game Value1: ", value1)
+print("Game Value2: ", value2)
+# print("Game Value: ", value)
 
 # s1_star, s2_star, value = solve_bimatrix_potential_game(A, B)
 #

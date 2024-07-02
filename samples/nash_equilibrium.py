@@ -140,9 +140,8 @@ def show_results(row_strategy, col_strategy, value_of_game):
 
 
 if __name__ == "__main__":
-    payoff_matrix = np.array([[3, 1],
-                              [0, 2],
-                              [2, 4]])
+    payoff_matrix = np.array([[-2, 0],
+                              [3, -1]])
     row_strategy, col_strategy, value_of_game = itr_solve(payoff_matrix)
     show_results(row_strategy, col_strategy, value_of_game)
 
@@ -153,20 +152,20 @@ if __name__ == "__main__":
     # row_strategy, col_strategy, value_of_game = solve_with_gambit(payoff_matrix)
     # show_results(row_strategy, col_strategy, value_of_game)
 
-    payoff_matrix = np.array([
-        [0, 1, -1],
-        [-1, 0, 1],
-        [1, -1, 0]])
-    row_strategy, col_strategy, value_of_game = itr_solve(payoff_matrix)
-    show_results(row_strategy, col_strategy, value_of_game)
+    # payoff_matrix = np.array([
+    #     [0, 1, -1],
+    #     [-1, 0, 1],
+    #     [1, -1, 0]])
+    # row_strategy, col_strategy, value_of_game = itr_solve(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
 
     # row_strategy, col_strategy, value_of_game = scipy_solve(payoff_matrix)
     # show_results(row_strategy, col_strategy, value_of_game)
 
-    payoff_matrix = np.array([[1, 4],
-                              [3, -1]])
-    row_strategy, col_strategy, value_of_game = itr_solve(payoff_matrix)
-    show_results(row_strategy, col_strategy, value_of_game)
+    # payoff_matrix = np.array([[1, 4],
+    #                           [3, -1]])
+    # row_strategy, col_strategy, value_of_game = itr_solve(payoff_matrix)
+    # show_results(row_strategy, col_strategy, value_of_game)
     #
     # # row_strategy, col_strategy, value_of_game = scipy_solve(payoff_matrix)
     # # show_results(row_strategy, col_strategy, value_of_game)
@@ -217,3 +216,4 @@ if __name__ == "__main__":
     #                           [-1, 1]])
     # row_strategy, col_strategy, value_of_game = solve_with_gambit(payoff_matrix)
     # show_results(row_strategy, col_strategy, value_of_game)
+

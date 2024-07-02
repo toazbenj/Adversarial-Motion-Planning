@@ -221,7 +221,6 @@ def dynamics(state, control_input1, control_input2):
                   [1, 0],
                   [0, 1]])
     next_state = np.dot(A, state) + np.dot(B, control_input)
-
     return next_state
 
 
