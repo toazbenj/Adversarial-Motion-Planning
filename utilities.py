@@ -5,8 +5,10 @@ Basic functions for doing game theory calculations and more common drag race gam
 helper functions. Most assume game has separate cost matrices for each player, each player is
 a minimizer.
 """
-
+import csv
+import ast
 import numpy as np
+from scipy.optimize import linprog
 
 def collision_check(state, control_input1, control_input2):
     """
@@ -340,6 +342,73 @@ def mixed_policy_3d(total_cost, state_lst, stage_count, is_min_max=True):
     return np.around(row_policy,2), np.around(col_policy,2), ctg
 
 
+def bimatrix_mixed_policy(total_cost1, total_cost2, state_lst, stage_count):
+    """
+    Find mixed saddle point game value for every state
+    :param total_cost: 3D cost array of state x control input x control input
+    :return: cost to go array of state x 1
+    """
+
+    num_states = total_cost1.shape[0]
+    ctg1 = np.zeros(num_states)
+    ctg2 = np.zeros(num_states)
+    row_policy = np.zeros((num_states, total_cost1.shape[1]))
+    col_policy = np.zeros((num_states, total_cost2.shape[1]))
+
+    for state in range(num_states):
+        # if state is an ending state, no decisions made
+        if check_end_state(state, state_lst, stage_count):
+            row_policy[state] = 0
+            col_policy[state] = 0
+            ctg1[state] = 0
+            ctg2[state] = 0
+        else:
+            cost1 = clean_matrix(total_cost1[state])
+            cost2 = clean_matrix(total_cost2[state])
+            small_row_policy, small_col_policy, ctg1[state], ctg2[state] = scipy_solve(cost1, cost2)
+
+            row_policy[state] = remap_values(total_cost1[state], small_row_policy)
+            col_policy[state] = remap_values(total_cost2[state], small_col_policy, is_row=False)
+
+    return np.around(row_policy,2), np.around(col_policy,2), ctg1, ctg2
+
+
+def scipy_solve(A, B):
+    m, n = A.shape
+
+    # Construct the objective function vector
+    c = np.zeros(m + n + 2)
+    c[-2:] = -1
+
+    # Construct the inequality constraint matrix Ain and vector bin
+    Ain_top = np.hstack((np.zeros((m, m)), -A, np.ones((m, 1)), np.zeros((m, 1))))
+    Ain_bottom = np.hstack((-B.T, np.zeros((n, n + 1)), np.ones((n, 1))))
+    Ain = np.vstack((Ain_top, Ain_bottom))
+    bin = np.zeros(m + n)
+
+    # Construct the equality constraint matrix Aeq and vector beq
+    Aeq = np.zeros((2, m + n + 2))
+    Aeq[0, :m] = 1
+    Aeq[1, m:m + n] = 1
+    beq = np.array([1, 1])
+
+    # Define the bounds for the variables
+    bounds = [(0, 1)] * (m + n) + [(-np.inf, np.inf), (-np.inf, np.inf)]
+
+    # Solve the linear program
+    result = linprog(c, A_ub=Ain, b_ub=bin, A_eq=Aeq, b_eq=beq, bounds=bounds)
+
+    if result.success:
+        x = result.x
+        y = x[:m]
+        z = x[m:m + n]
+        p = x[m + n]
+        q = x[m + n + 1]
+        return y, z, p, q
+    else:
+        raise ValueError("Linear programming did not converge")
+
+
 def clean_matrix(mat):
     """Remove rows/cols with all NaNs, keep matrix shape
     :param mat: numpy array
@@ -384,3 +453,90 @@ def remap_values(mat, small_arr, is_row=True):
             large_arr[i] = small_lst.pop(0)
         i += 1
     return large_arr
+
+
+def read_csv_to_variables(filename):
+    """
+    Load variables from csv file
+    :param filename: name of data file str
+    :return: tuple of offline calculated game variables
+    """
+    with open(filename, 'r') as csvfile:
+        csvreader = csv.reader(csvfile)
+
+        # Skip header
+        next(csvreader)
+
+        data_dict = {}
+        for row in csvreader:
+            key = row[0]
+            values = row[1:]
+            if len(values) == 1:
+                # Convert single value to int or float
+                value = values[0]
+                if value.replace('.', '', 1).isdigit():
+                    data_dict[key] = float(value) if '.' in value else int(value)
+                else:
+                    # Safely parse string representation of lists using ast.literal_eval
+                    data_dict[key] = ast.literal_eval(value)
+            else:
+                # Handle lists of values
+                data_dict[key] = [float(v) if '.' in v else int(v) for v in values]
+
+    # Assign variables from the dictionary
+    stage_count = data_dict['stage_count']
+    penalty_lst = data_dict['penalty_lst']
+
+    init_state = np.array(data_dict['init_state']).reshape((3, 2))
+    states = np.array(data_dict['states']).reshape((-1, 2))  # Adjust shape as per your actual states' shape
+    control_inputs = np.array(data_dict['control_inputs']).reshape(
+        (-1, 2))  # Adjust shape as per your actual control inputs' shape
+
+    costs1 = np.array(data_dict['costs1']).reshape((-1, 3))  # Adjust shape as per your actual costs1 shape
+    costs2 = np.array(data_dict['costs2']).reshape((-1, 3))  # Adjust shape as per your actual costs2 shape
+
+    dynamics = np.array(data_dict['dynamics']).reshape((-1, 2, 2))  # Adjust shape as per your actual dynamics shape
+
+    ctg1 = np.array(data_dict['ctg1']).reshape((-1, 2))  # Adjust shape as per your actual ctg1 shape
+    ctg2 = np.array(data_dict['ctg2']).reshape((-1, 2))  # Adjust shape as per your actual ctg2 shape
+    policy1 = np.array(data_dict['policy1']).reshape((-1, 2))  # Adjust shape as per your actual policy1 shape
+    policy2 = np.array(data_dict['policy2']).reshape((-1, 2))  # Adjust shape as per your actual policy2 shape
+
+    return (stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2, dynamics, ctg1, ctg2, policy1,
+            policy2)
+
+
+def write_variables_to_csv(filename, stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2,
+                           dynamics, ctg1, ctg2, policy1, policy2):
+    """
+    Write all offline calculated data to csv file
+    :param filename: name of data file
+    :param stage_count: int
+    :param penalty_lst: lst
+    :param init_state: np array
+    :param states: array of all possible states
+    :param control_inputs: list of all control inputs
+    :param costs1: state x ctrl1 x ctrl2 array of costs
+    :param costs2: see above
+    :param dynamics:state x crtl1 x crtl2 array of state indices
+    :param ctg1: cost to go for player 1, stage x states
+    :param ctg2: cost to go for player 2
+    :param policy1: round x state x control inputs array of mixed policies for player 1
+    :param policy2: see above
+    """
+
+    with open(filename, 'w', newline='') as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(['Variable', 'Value'])
+        csvwriter.writerow(['stage_count', stage_count])
+        csvwriter.writerow(['penalty_lst', penalty_lst])
+        csvwriter.writerow(['init_state'] + init_state.flatten().tolist())
+        csvwriter.writerow(['states'] + states.flatten().tolist())
+        csvwriter.writerow(['control_inputs'] + control_inputs.flatten().tolist())
+        csvwriter.writerow(['costs1'] + costs1.flatten().tolist())
+        csvwriter.writerow(['costs2'] + costs2.flatten().tolist())
+        csvwriter.writerow(['dynamics'] + dynamics.flatten().tolist())
+        csvwriter.writerow(['ctg1'] + ctg1.flatten().tolist())
+        csvwriter.writerow(['ctg2'] + ctg2.flatten().tolist())
+        csvwriter.writerow(['policy1'] + policy1.flatten().tolist())
+        csvwriter.writerow(['policy2'] + policy2.flatten().tolist())

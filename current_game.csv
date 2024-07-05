@@ -1,0 +1,4 @@
+Variable,Value
+stage_count,1
+penalty_lst,"[0, 1, 2, 1, 1]"
+init_state,0,0,0,1,0,0

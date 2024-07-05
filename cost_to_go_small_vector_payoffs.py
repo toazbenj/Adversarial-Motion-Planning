@@ -54,9 +54,12 @@ def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, state
         combined_cost1 = expand_mat(V1[stage + 1], costs1) + costs1
         combined_cost2 = expand_mat(V2[stage + 1], costs2) + costs2
 
-        policy1[stage], _, mixed_value1 = mixed_policy_3d(combined_cost1, state_lst, stage_count)
-        _, policy2[stage], mixed_value2 = mixed_policy_3d(combined_cost2, state_lst, stage_count)
+        # policy1[stage], _, mixed_value1 = mixed_policy_3d(combined_cost1, state_lst, stage_count)
+        # _, policy2[stage], mixed_value2 = mixed_policy_3d(combined_cost2, state_lst, stage_count)
 
+        policy1[stage], policy2[stage], mixed_value1, mixed_value2 = bimatrix_mixed_policy(combined_cost1,
+                                                                                           combined_cost2,
+                                                                                           state_lst, stage_count)
         V1[stage] = mixed_value1
         V2[stage] = mixed_value2
 
@@ -143,21 +146,31 @@ def find_values(states_played, u, d, costs1, costs2):
 
 
 if __name__ == '__main__':
-    stage_count = 1
-    # maintain speed, decelerate, accelerate, turn, collide
-    penalty_lst = [0, 1, 2, 1, 2]
-    init_state = np.array([[0, 0],
-                           [0, 1],
-                           [0, 0]])
+    is_new_game = True
+    filename = "current_game.csv"
 
-    states = generate_states(stage_count)
-    control_inputs = generate_control_inputs()
+    if is_new_game:
+        stage_count = 1
+        # maintain speed, decelerate, accelerate, turn, collide
+        penalty_lst = [0, 1, 2, 1, 1]
+        init_state = np.array([[0, 0],
+                               [0, 1],
+                               [0, 0]])
 
-    costs1, costs2 = generate_costs(states, control_inputs, penalty_lst, rank_cost)
-    dynamics = generate_dynamics(states, control_inputs)
+        states = generate_states(stage_count)
+        control_inputs = generate_control_inputs()
 
-    # ctg1, ctg2 = generate_cost_to_go(stage_count, costs1, costs2)
-    ctg1, ctg2, policy1, policy2 = generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, states)
+        costs1, costs2 = generate_costs(states, control_inputs, penalty_lst, rank_cost)
+        dynamics = generate_dynamics(states, control_inputs)
+
+        ctg1, ctg2, policy1, policy2 = generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, states)
+
+        write_variables_to_csv(filename, stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2,
+                               dynamics, ctg1, ctg2, policy1, policy2)
+    else:
+        # load saved game
+        stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2, dynamics, ctg1, ctg2, policy1, \
+            policy2 = read_csv_to_variables(filename)
 
     print("Cost to Go")
     for k in range(stage_count + 2):
@@ -176,7 +189,6 @@ if __name__ == '__main__':
     print('\n')
 
     init_state_index = array_find(init_state, states)
-    # u, d, states_played = optimal_actions(stage_count, costs1, costs2, ctg1, ctg2, dynamics, init_state_index)
     u, d, states_played = play_game(policy1, policy2, dynamics, stage_count, init_state_index)
 
     print("Control Inputs")

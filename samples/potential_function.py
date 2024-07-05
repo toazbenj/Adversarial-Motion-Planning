@@ -169,12 +169,20 @@ if __name__ == '__main__':
     # B = np.array([[-1, 0, -1],
     #               [1, 1, 0],
     #               [1, 1, 1]])
-    A = np.array([[2, 0, 1],
-                  [2, -1, 0],
-                  [2, -2, 2]])
+    # A = np.array([[2, 0, 1],
+    #               [2, -1, 0],
+    #               [2, -2, 2]])
+    # B = np.array([[-2, 0, -1],
+    #               [2, 1, 0],
+    #               [2, 2, 2]])
+    c = 10
+    A = np.array([[3, 0, 1],
+                  [c, -1, 0],
+                  [c, -2, c]])
     B = np.array([[-2, 0, -1],
-                  [2, 1, 0],
-                  [2, 2, 2]])
+                  [c, 1, 0],
+                  [c, 2, c]])
+
     potential_matrix = potential_function(A, B)
     print(potential_matrix)
     
