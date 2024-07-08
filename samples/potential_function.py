@@ -51,25 +51,7 @@ def find_nash_equilibria(phi):
     :return: list of local minima tuples
     """
     m, n = phi.shape
-    equilibria = []
-
-    # Iterate through each element in phi
-    for i in range(m):
-        for j in range(n):
-            # Determine neighbors
-            neighbors = []
-            if i > 0:
-                neighbors.append(phi[i - 1, j])  # Above
-            if i < m - 1:
-                neighbors.append(phi[i + 1, j])  # Below
-            if j > 0:
-                neighbors.append(phi[i, j - 1])  # Left
-            if j < n - 1:
-                neighbors.append(phi[i, j + 1])  # Right
-
-            # Check if phi[i, j] is a local min
-            if all(phi[i, j] <= neighbor for neighbor in neighbors):
-                equilibria.append((i, j))
+    equilibria = np.min(phi)
 
     return equilibria
 
@@ -118,6 +100,7 @@ def pick_global_minima(equilibria, values):
         policies.append(policy)
 
     return policies, minima_set
+
 
 
 if __name__ == '__main__':
@@ -175,14 +158,19 @@ if __name__ == '__main__':
     # B = np.array([[-2, 0, -1],
     #               [2, 1, 0],
     #               [2, 2, 2]])
-    c = 10
-    A = np.array([[3, 0, 1],
-                  [c, -1, 0],
-                  [c, -2, c]])
-    B = np.array([[-2, 0, -1],
-                  [c, 1, 0],
-                  [c, 2, c]])
-
+    # c = 10
+    # A = np.array([[3, 0, 1],
+    #               [c, -1, 0],
+    #               [c, -2, c]])
+    # B = np.array([[-2, 0, -1],
+    #               [c, 1, 0],
+    #               [c, 2, c]])
+    A = 2*np.array([[3, 5, 1],
+                  [10, -1, 5],
+                  [10, -2, 10]])
+    B = np.array([[-2, 5, -1],
+                  [10, 1, 5],
+                  [10, 2, 10]])
     potential_matrix = potential_function(A, B)
     print(potential_matrix)
     

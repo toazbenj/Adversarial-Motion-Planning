@@ -41,7 +41,6 @@ def scipy_solve(A, B):
     else:
         raise ValueError("Linear programming did not converge")
 
-
 # Example usage
 # A = np.array([[2, 30],
 #               [0, 8]])
@@ -51,13 +50,13 @@ def scipy_solve(A, B):
 #               [0, -1]])
 # B = np.array([[-1, 2],
 #               [3, -2]])
-c = 10
-A = np.array([[3, 0, 1],
-              [c, -1, 0],
-              [c, -2, c]])
-B = np.array([[-2, 0, -1],
-              [c, 1, 0],
-              [c, 2, c]])
+# c = 10
+# A = np.array([[3, 0, 1],
+#               [c, -1, 0],
+#               [c, -2, c]])
+# B = np.array([[-2, 0, -1],
+#               [c, 1, 0],
+#               [c, 2, c]])
 
 # A = np.array([[3, 0, 1],
 #               [10, -1, 0],
@@ -76,6 +75,12 @@ B = np.array([[-2, 0, -1],
 #               [0, 1, 0, 1],
 #               [-1, 0, 1, 0]])
 # B = -A
+A = np.array([[3, 5, 1],
+              [10, -1, 5],
+              [10, -2, 10]])
+B = np.array([[-2, 5, -1],
+              [10, 1, 5],
+              [10, 2, 10]])
 player1_strategy, player2_strategy, value1, value2 = scipy_solve(A, B)
 print("A=\n",A)
 print("B=\n", B)

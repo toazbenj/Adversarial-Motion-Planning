@@ -60,6 +60,7 @@ def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, state
         policy1[stage], policy2[stage], mixed_value1, mixed_value2 = bimatrix_mixed_policy(combined_cost1,
                                                                                            combined_cost2,
                                                                                            state_lst, stage_count)
+
         V1[stage] = mixed_value1
         V2[stage] = mixed_value2
 
@@ -189,21 +190,24 @@ if __name__ == '__main__':
     print('\n')
 
     init_state_index = array_find(init_state, states)
-    u, d, states_played = play_game(policy1, policy2, dynamics, stage_count, init_state_index)
 
-    print("Control Inputs")
-    print('u =', u)
-    print('d =', d)
-    print('\n')
+    runs = 1
+    for i in range(runs):
+        u, d, states_played = play_game(policy1, policy2, dynamics, stage_count, init_state_index)
 
-    print("States Played")
-    for i in range(len(states_played)):
-        print("Stage {} =".format(i))
-        print(states[states_played[i]])
-    print('\n')
+        print("Control Inputs")
+        print('u =', u)
+        print('d =', d)
+        print('\n')
 
-    game_values = find_values(states_played, u, d, costs1, costs2)
-    print('Game values = ', game_values)
+        print("States Played")
+        for i in range(len(states_played)):
+            print("Stage {} =".format(i))
+            print(states[states_played[i]])
+        print('\n')
 
-    plot_race(states_played, states)
-    print("The End")
+        game_values = find_values(states_played, u, d, costs1, costs2)
+        print('Game values = ', game_values)
+
+        plot_race(states_played, states)
+print("The End")
