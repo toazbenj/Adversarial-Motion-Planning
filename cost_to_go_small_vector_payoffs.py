@@ -147,13 +147,15 @@ def find_values(states_played, u, d, costs1, costs2):
 
 
 if __name__ == '__main__':
-    is_new_game = True
-    filename = "current_game.csv"
+    is_new_game = False
+    filename = "current_game.npz"
 
     if is_new_game:
-        stage_count = 1
-        # maintain speed, decelerate, accelerate, turn, collide
-        penalty_lst = [0, 1, 2, 1, 1]
+        stage_count = 0
+        # maintain speed, decelerate, accelerate, turn, tie, collide
+        # penalty_lst = [0, 1, 2, 1, 5, 10]
+        penalty_lst = [0, 3, 3, 3, 5, 20]
+
         init_state = np.array([[0, 0],
                                [0, 1],
                                [0, 0]])
@@ -161,17 +163,17 @@ if __name__ == '__main__':
         states = generate_states(stage_count)
         control_inputs = generate_control_inputs()
 
-        costs1, costs2 = generate_costs(states, control_inputs, penalty_lst, rank_cost)
+        costs1, costs2 = generate_costs(states, control_inputs, penalty_lst, safety_cost)
         dynamics = generate_dynamics(states, control_inputs)
 
         ctg1, ctg2, policy1, policy2 = generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, states)
 
-        write_variables_to_csv(filename, stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2,
-                               dynamics, ctg1, ctg2, policy1, policy2)
+        write_variables_to_npz(filename, (stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2,
+                               dynamics, ctg1, ctg2, policy1, policy2))
     else:
         # load saved game
         stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2, dynamics, ctg1, ctg2, policy1, \
-            policy2 = read_csv_to_variables(filename)
+            policy2 = read_npz_to_variables(filename)
 
     print("Cost to Go")
     for k in range(stage_count + 2):
@@ -191,7 +193,7 @@ if __name__ == '__main__':
 
     init_state_index = array_find(init_state, states)
 
-    runs = 1
+    runs = 10
     for i in range(runs):
         u, d, states_played = play_game(policy1, policy2, dynamics, stage_count, init_state_index)
 

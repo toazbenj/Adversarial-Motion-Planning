@@ -6,6 +6,9 @@ Function to graph state output from drag race game
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
+import matplotlib.ticker as plticker
+
 
 def plot_race(states_played, states):
     """
@@ -33,12 +36,17 @@ def plot_race(states_played, states):
 
     # Create a plot with two subplots
     fig, axs = plt.subplots(2, 1, figsize=(10, 6))
-    plt.subplots_adjust(left=0.2, hspace=0.5)
+    plt.subplots_adjust(left=0.3, hspace=0.5)
 
     # Plot player positions (distance and lane)
+
     axs[0].plot(player1_distances, player1_lanes, label='Player 1', marker='o', linestyle='-')
     axs[0].plot(player2_distances, player2_lanes, label='Player 2', marker='s', linestyle='-')
-    axs[0].invert_yaxis()
+    # axs[0].invert_yaxis()
+
+    # Ensure there is some minimum range for the axes
+    axs[0].set_xlim(-0.1, len(states_played)-0.9)
+    axs[0].set_ylim(max(player1_lanes + player2_lanes)+0.1, min(player1_lanes + player2_lanes)-0.1)
 
     offset1 = 0.05
     offset2 = 0.05
@@ -51,18 +59,20 @@ def plot_race(states_played, states):
             offset1 += 0.1
         else:
             offset1 = 0.05
-        axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]), (player1_distances[i]+offset1, player1_lanes[i]+0.05))
+        axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]),
+                        (player1_distances[i] + offset1, player1_lanes[i] + 0.05))
 
         if last_coords2 == (player2_distances[i], player2_lanes[i]):
             offset2 += 0.1
         else:
             offset2 = 0.05
-        axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]), (player2_distances[i]+offset2, player2_lanes[i]+0.05))
+        axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]),
+                        (player2_distances[i] + offset2, player2_lanes[i] + 0.05))
 
         last_coords1 = (player1_distances[i], player1_lanes[i])
         last_coords2 = (player2_distances[i], player2_lanes[i])
 
-
+    axs[0].yaxis.set_major_locator(MultipleLocator(1))
     axs[0].set_xlabel('Distance')
     axs[0].set_ylabel('Lane')
     axs[0].set_title('Player Positions (Distance vs Lane)')
@@ -72,6 +82,12 @@ def plot_race(states_played, states):
     # Plot player velocities
     axs[1].plot(player1_velocities, label='Player 1', marker='o', linestyle='-')
     axs[1].plot(player2_velocities, label='Player 2', marker='s', linestyle='-')
+
+    # Ensure there is some minimum range for the axes
+    axs[1].set_xlim(-0.1, len(states_played)-0.9)
+    axs[1].set_ylim(min(player1_velocities + player2_velocities)-0.1, max(player1_velocities + player2_velocities)+0.1)
+
+    axs[1].yaxis.set_major_locator(MultipleLocator(1))
     axs[1].set_xlabel('Stage')
     axs[1].set_ylabel('Velocity')
     axs[1].set_title('Player Velocities over Time')
@@ -101,7 +117,7 @@ if __name__ == '__main__':
                   [0, 1]])]
 
     # Example states_played (indices into the states list)
-    states_played = [0, 1, 2, 2]
+    states_played = [0, 0, 1, 2, 3]
 
     # Call the plot function
     plot_race(states_played, states)

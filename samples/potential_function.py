@@ -51,8 +51,23 @@ def find_nash_equilibria(phi):
     :return: list of local minima tuples
     """
     m, n = phi.shape
-    equilibria = np.min(phi)
-
+    equilibria = []
+    # Iterate through each element in phi
+    for i in range(m):
+        for j in range(n):
+            # Determine neighbors
+            neighbors = []
+            if i > 0:
+                neighbors.append(phi[i - 1, j])  # Above
+            if i < m - 1:
+                neighbors.append(phi[i + 1, j])  # Below
+            if j > 0:
+                neighbors.append(phi[i, j - 1])  # Left
+            if j < n - 1:
+                neighbors.append(phi[i, j + 1])  # Right
+            # Check if phi[i, j] is a local min
+            if all(phi[i, j] <= neighbor for neighbor in neighbors):
+                equilibria.append((i, j))
     return equilibria
 
 
@@ -104,23 +119,18 @@ def pick_global_minima(equilibria, values):
 
 
 if __name__ == '__main__':
-    # Example usage
-    # A = np.array([
-    #     [2, 30],
-    #     [0, 8]
-    # ])
-    # B = np.array([
-    #     [2, 0],
-    #     [30, 8]
-    # ])
+    A = np.array([
+        [2, 30],
+        [0, 8] ])
+    B = np.array([
+        [2, 0],
+        [30, 8]])
     # A = np.array([
     #     [-2, 1],
-    #     [0, -1]
-    # ])
+    #     [0, -1]])
     # B = np.array([
     #     [-1, 3],
-    #     [2, -2]
-    # ])
+    #     [2, -2]])
     # A = np.array([
     #     [0, 0, 0, 0],
     #     [2, 10, 2, 2],
@@ -131,7 +141,6 @@ if __name__ == '__main__':
     #     [1, 10, 0, 2],
     #     [1, 3, 0, 2],
     #     [1, 10, 0, 10]])
-    #
     # A = np.array([
     #     [0, 0, 0, 0],
     #     [2, 10, 2, 2],
@@ -152,25 +161,12 @@ if __name__ == '__main__':
     # B = np.array([[-1, 0, -1],
     #               [1, 1, 0],
     #               [1, 1, 1]])
-    # A = np.array([[2, 0, 1],
-    #               [2, -1, 0],
-    #               [2, -2, 2]])
-    # B = np.array([[-2, 0, -1],
-    #               [2, 1, 0],
-    #               [2, 2, 2]])
-    # c = 10
-    # A = np.array([[3, 0, 1],
-    #               [c, -1, 0],
-    #               [c, -2, c]])
-    # B = np.array([[-2, 0, -1],
-    #               [c, 1, 0],
-    #               [c, 2, c]])
-    A = 2*np.array([[3, 5, 1],
-                  [10, -1, 5],
-                  [10, -2, 10]])
-    B = np.array([[-2, 5, -1],
-                  [10, 1, 5],
-                  [10, 2, 10]])
+    # A = np.array([[3, 5, 1],
+    #               [10, -1, 5],
+    #               [10, -2, 10]])
+    # B = np.array([[-2, 5, -1],
+    #               [10, 1, 5],
+    #               [10, 2, 10]])
     potential_matrix = potential_function(A, B)
     print(potential_matrix)
     

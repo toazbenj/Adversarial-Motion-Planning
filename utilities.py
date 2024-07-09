@@ -75,6 +75,12 @@ def safety_cost(state, control_input1, control_input2, penalty_lst):
             # turn
             if control_input[0][i] != 0:
                 risk += penalty_lst[3]
+            # tie
+            next_state = dynamics(state, control_input1, control_input2)
+            p1_dist = next_state[0][0]
+            p2_dist = next_state[0][1]
+            if p1_dist - p2_dist == 0:
+                risk += penalty_lst[-2]
 
             safety[i] = risk
 
@@ -101,13 +107,16 @@ def rank_cost(state, control_input1, control_input2, penalty_lst):
         next_state = dynamics(state, control_input1, control_input2)
         p1_dist = next_state[0][0]
         p2_dist = next_state[0][1]
-        rank_cost = np.array([p2_dist-p1_dist, p1_dist-p2_dist])
+        if p1_dist-p2_dist == 0:
+            rank_cost = np.array([penalty_lst[-2], penalty_lst[-2]])
+        else:
+            rank_cost = np.array([p2_dist-p1_dist, p1_dist-p2_dist])
 
-        p1_lane = next_state[1][0]
-        p2_lane = next_state[1][1]
+        # p1_lane = next_state[1][0]
+        # p2_lane = next_state[1][1]
 
-        if p1_lane == p2_lane:
-            rank_cost *= 2
+        # if p1_lane == p2_lane:
+        #     rank_cost *= 2
 
     return rank_cost[0], rank_cost[1]
 
@@ -505,63 +514,6 @@ def remap_values(mat, small_arr, is_row=True):
 #     return (stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2, dynamics, ctg1, ctg2, policy1,
 #             policy2)
 
-def read_csv_to_variables(filename):
-    """
-    Load variables from csv file
-    :param filename: name of data file str
-    :return: tuple of offline calculated game variables
-    """
-    with open(filename, 'r') as csvfile:
-        csvreader = csv.reader(csvfile)
-
-        # Skip header
-        next(csvreader)
-
-        data_dict = {}
-        for row in csvreader:
-            key = row[0]
-            values = row[1:]
-            if len(values) == 1:
-                # Convert single value to int or float
-                value = values[0]
-                if value.replace('.', '', 1).isdigit():
-                    data_dict[key] = float(value) if '.' in value else int(value)
-                else:
-                    # Safely parse string representation of lists using ast.literal_eval
-                    data_dict[key] = ast.literal_eval(value)
-            else:
-                # Handle lists of values correctly
-                parsed_values = []
-                for v in values:
-                    if v.startswith('['):
-                        parsed_values.append(np.array(ast.literal_eval(v)))
-                    elif '.' in v:
-                        parsed_values.append(float(v))
-                    else:
-                        parsed_values.append(int(v))
-                data_dict[key] = np.array(parsed_values)
-
-    # Assign variables from the dictionary
-    stage_count = data_dict['stage_count']
-    penalty_lst = data_dict['penalty_lst']
-
-    init_state = np.array(data_dict['init_state']).reshape((3, 2))
-    states = np.concatenate([np.array(ast.literal_eval(v)) for v in data_dict['states']])
-    control_inputs = np.array(data_dict['control_inputs']).reshape(
-        (-1, 2))  # Adjust shape as per your actual control inputs' shape
-
-    costs1 = np.array(data_dict['costs1']).reshape((-1, 3))  # Adjust shape as per your actual costs1 shape
-    costs2 = np.array(data_dict['costs2']).reshape((-1, 3))  # Adjust shape as per your actual costs2 shape
-
-    dynamics = np.array(data_dict['dynamics']).reshape((-1, 2, 2))  # Adjust shape as per your actual dynamics shape
-
-    ctg1 = np.array(data_dict['ctg1']).reshape((-1, 2))  # Adjust shape as per your actual ctg1 shape
-    ctg2 = np.array(data_dict['ctg2']).reshape((-1, 2))  # Adjust shape as per your actual ctg2 shape
-    policy1 = np.array(data_dict['policy1']).reshape((-1, 2))  # Adjust shape as per your actual policy1 shape
-    policy2 = np.array(data_dict['policy2']).reshape((-1, 2))  # Adjust shape as per your actual policy2 shape
-
-    return (stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2, dynamics, ctg1, ctg2, policy1, policy2)
-
 
 def write_variables_to_csv(filename, stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2,
                            dynamics, ctg1, ctg2, policy1, policy2):
@@ -597,3 +549,107 @@ def write_variables_to_csv(filename, stage_count, penalty_lst, init_state, state
         csvwriter.writerow(['ctg2'] + ctg2.flatten().tolist())
         csvwriter.writerow(['policy1'] + policy1.flatten().tolist())
         csvwriter.writerow(['policy2'] + policy2.flatten().tolist())
+
+import csv
+import numpy as np
+import ast
+
+def read_csv_to_variables(filename):
+    """
+    Load variables from csv file
+    :param filename: name of data file str
+    :return: tuple of offline calculated game variables
+    """
+    with open(filename, 'r') as csvfile:
+        csvreader = csv.reader(csvfile)
+
+        # Skip header
+        next(csvreader)
+
+        data_dict = {}
+        for row in csvreader:
+            key = row[0]
+            values = row[1:]
+            if len(values) == 1:
+                # Convert single value to int or float
+                value = values[0]
+                if value.replace('.', '', 1).isdigit():
+                    data_dict[key] = float(value) if '.' in value else int(value)
+                else:
+                    # Safely parse string representation of lists using ast.literal_eval
+                    data_dict[key] = ast.literal_eval(value)
+            else:
+                # Handle lists of values correctly
+                parsed_values = []
+                for v in values:
+                    if v.startswith('['):
+
+                        parsed_values.append(np.array(ast.literal_eval(v)))
+                    elif '.' in v:
+                        parsed_values.append(float(v))
+                    else:
+                        parsed_values.append(int(v))
+                data_dict[key] = parsed_values
+
+    # Assign variables from the dictionary
+    stage_count = data_dict['stage_count']
+    penalty_lst = data_dict['penalty_lst']
+
+    init_state = np.array(data_dict['init_state']).reshape((3, 2))
+    states = np.concatenate([np.array(v) for v in data_dict['states']], axis=0).reshape((-1, 3, 2))
+    control_inputs = np.array(data_dict['control_inputs']).reshape(
+        (-1, 2))  # Adjust shape as per your actual control inputs' shape
+
+    costs1 = np.array(data_dict['costs1']).reshape((-1, 3))  # Adjust shape as per your actual costs1 shape
+    costs2 = np.array(data_dict['costs2']).reshape((-1, 3))  # Adjust shape as per your actual costs2 shape
+
+    dynamics = np.array(data_dict['dynamics']).reshape((-1, 2, 2))  # Adjust shape as per your actual dynamics shape
+
+    ctg1 = np.array(data_dict['ctg1']).reshape((-1, 2))  # Adjust shape as per your actual ctg1 shape
+    ctg2 = np.array(data_dict['ctg2']).reshape((-1, 2))  # Adjust shape as per your actual ctg2 shape
+    policy1 = np.array(data_dict['policy1']).reshape((-1, 2))  # Adjust shape as per your actual policy1 shape
+    policy2 = np.array(data_dict['policy2']).reshape((-1, 2))  # Adjust shape as per your actual policy2 shape
+
+    return (stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2, dynamics, ctg1, ctg2, policy1, policy2)
+
+
+def write_variables_to_npz(filename, variables):
+    """
+    Write variables to a npz file
+    :param filename: name of data file str
+    :param variables: tuple of offline calculated game variables
+    """
+    keys = ['stage_count', 'penalty_lst', 'init_state', 'states', 'control_inputs',
+            'costs1', 'costs2', 'dynamics', 'ctg1', 'ctg2', 'policy1', 'policy2']
+
+    data_dict = {key: value for key, value in zip(keys, variables)}
+    np.savez(filename, **data_dict)
+
+
+def read_npz_to_variables(filename):
+    """
+    Load variables from npz file
+    :param filename: name of data file str
+    :return: tuple of offline calculated game variables
+    """
+    data = np.load(filename, allow_pickle=True)
+
+    stage_count = data['stage_count'].item()
+    penalty_lst = data['penalty_lst'].tolist()
+
+    init_state = data['init_state']
+    states = data['states']
+    control_inputs = data['control_inputs']
+
+    costs1 = data['costs1']
+    costs2 = data['costs2']
+
+    dynamics = data['dynamics']
+
+    ctg1 = data['ctg1']
+    ctg2 = data['ctg2']
+    policy1 = data['policy1']
+    policy2 = data['policy2']
+
+    return stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2, \
+                dynamics, ctg1, ctg2, policy1, policy2

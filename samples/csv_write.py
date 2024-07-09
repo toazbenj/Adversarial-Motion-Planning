@@ -34,6 +34,34 @@ def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, state
     return np.random.rand(5, 2), np.random.rand(5, 2), np.random.rand(5, 2), np.random.rand(5,
                                                                                             2)  # Example ctg and policy arrays
 
+def write_variables_to_csv(filename, variables):
+    """
+    Write variables to a csv file
+    :param filename: name of data file str
+    :param variables: tuple of offline calculated game variables
+    """
+    keys = ['stage_count', 'penalty_lst', 'init_state', 'states', 'control_inputs',
+            'costs1', 'costs2', 'dynamics', 'ctg1', 'ctg2', 'policy1', 'policy2']
+
+    # Flatten numpy arrays and convert to lists for writing to CSV
+    flat_variables = {}
+    for key, value in zip(keys, variables):
+        if isinstance(value, np.ndarray):
+            flat_variables[key] = value.flatten().tolist()
+        else:
+            flat_variables[key] = value
+
+    with open(filename, 'w', newline='') as csvfile:
+        csvwriter = csv.writer(csvfile)
+        # Write header
+        csvwriter.writerow(['key', 'values'])
+
+        # Write data
+        for key, value in flat_variables.items():
+            if isinstance(value, list):
+                csvwriter.writerow([key] + value)
+            else:
+                csvwriter.writerow([key, value])
 
 # Generate the required data
 states = generate_states(stage_count)
@@ -42,22 +70,6 @@ costs1, costs2 = generate_costs(states, control_inputs, penalty_lst, rank_cost=N
 dynamics = generate_dynamics(states, control_inputs)
 ctg1, ctg2, policy1, policy2 = generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, states)
 
-# Open a CSV file to write the data
-with open('output_data.csv', 'w', newline='') as csvfile:
-    csvwriter = csv.writer(csvfile)
-    csvwriter.writerow(['Variable', 'Value'])
-    csvwriter.writerow(['stage_count', stage_count])
-    csvwriter.writerow(['penalty_lst', penalty_lst])
-    csvwriter.writerow(['init_state'] + init_state.flatten().tolist())
-    csvwriter.writerow(['states'] + states.flatten().tolist())
-    csvwriter.writerow(['control_inputs'] + control_inputs.flatten().tolist())
-    csvwriter.writerow(['costs1'] + costs1.flatten().tolist())
-    csvwriter.writerow(['costs2'] + costs2.flatten().tolist())
-    csvwriter.writerow(['dynamics'] + dynamics.flatten().tolist())
-    csvwriter.writerow(['ctg1'] + ctg1.flatten().tolist())
-    csvwriter.writerow(['ctg2'] + ctg2.flatten().tolist())
-    csvwriter.writerow(['policy1'] + policy1.flatten().tolist())
-    csvwriter.writerow(['policy2'] + policy2.flatten().tolist())
-    print("Data written")
-
-print("Data successfully written to output_data.csv")
+variables = (stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2,
+                           dynamics, ctg1, ctg2, policy1, policy2)
+write_variables_to_csv('output.csv', variables)
