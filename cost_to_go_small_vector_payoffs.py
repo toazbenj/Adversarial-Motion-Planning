@@ -127,7 +127,7 @@ def play_game(policy1, policy2, dynamics, stage_count, init_state_index):
     return control1, control2, states_played
 
 
-def find_values(states_played, u, d, costs1, costs2):
+def find_values(states_played, u, d, rank_cost1, rank_cost2, safety_cost1, safety_cost2):
     """
     Sum up costs of each players' actions
     :param states_played: list of numpy arrays of states
@@ -137,12 +137,16 @@ def find_values(states_played, u, d, costs1, costs2):
     :param costs2: player 2 costs for all configurations
     :return: game values for each player list
     """
-    values = [0, 0]
+    values = np.array([[0, 0], [0, 0]])
     for idx in range(len(states_played)-1):
-        round_cost1 = costs1[states_played[idx], u[idx], d[idx]]
-        round_cost2 = costs2[states_played[idx], u[idx], d[idx]]
-        values[0] += round_cost1
-        values[1] += round_cost2
+        round_rank_cost1 = rank_cost1[states_played[idx], u[idx], d[idx]]
+        round_rank_cost2 = rank_cost2[states_played[idx], u[idx], d[idx]]
+
+        round_safety_cost1 = safety_cost1[states_played[idx], u[idx], d[idx]]
+        round_safety_cost2 = safety_cost2[states_played[idx], u[idx], d[idx]]
+
+        values[0] += np.array([int(round_rank_cost1), int(round_safety_cost1)])
+        values[1] += np.array([int(round_rank_cost2), int(round_safety_cost2)])
     return values
 
 
@@ -153,8 +157,8 @@ if __name__ == '__main__':
     if is_new_game:
         stage_count = 0
         # maintain speed, decelerate, accelerate, turn, tie, collide
-        # penalty_lst = [0, 1, 2, 1, 5, 10]
-        penalty_lst = [0, 3, 3, 3, 5, 20]
+        rank_penalty_lst = [0, 1, 2, 1, 5, 10]
+        safety_penalty_lst = [0, 3, 3, 3, 5, 20]
 
         init_state = np.array([[0, 0],
                                [0, 1],
@@ -163,53 +167,78 @@ if __name__ == '__main__':
         states = generate_states(stage_count)
         control_inputs = generate_control_inputs()
 
-        costs1, costs2 = generate_costs(states, control_inputs, penalty_lst, safety_cost)
+        rank_cost1, rank_cost2 = generate_costs(states, control_inputs, rank_penalty_lst, rank_cost)
+        safety_cost1, safety_cost2 = generate_costs(states, control_inputs, safety_penalty_lst, safety_cost)
+
         dynamics = generate_dynamics(states, control_inputs)
 
-        ctg1, ctg2, policy1, policy2 = generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, states)
+        rank_ctg1, rank_ctg2, aggressive_policy1, aggressive_policy2 =\
+            generate_cost_to_go_mixed(stage_count,
+                                      rank_cost1, rank_cost2,
+                                      control_inputs, states)
+        safety_ctg1, safety_ctg2, conservative_policy1, conservative_policy2 =\
+            generate_cost_to_go_mixed(stage_count,
+                                      safety_cost1, safety_cost2,
+                                      control_inputs, states)
 
-        write_variables_to_npz(filename, (stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2,
-                               dynamics, ctg1, ctg2, policy1, policy2))
+        moderate_policy1, moderate_policy2 = generate_moderate_policies(aggressive_policy1, aggressive_policy2,
+                                                                        conservative_policy1, conservative_policy2)
+
+        write_variables_to_npz(filename, (stage_count, rank_penalty_lst, safety_penalty_lst, init_state, states,
+                                          control_inputs, rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics,
+                                          aggressive_policy1, aggressive_policy2,
+                                          conservative_policy1, conservative_policy2,
+                                          moderate_policy1, moderate_policy2))
     else:
         # load saved game
-        stage_count, penalty_lst, init_state, states, control_inputs, costs1, costs2, dynamics, ctg1, ctg2, policy1, \
-            policy2 = read_npz_to_variables(filename)
+        stage_count, rank_penalty_lst, safety_penalty_lst, init_state, states, control_inputs, \
+         rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics, \
+         aggressive_policy1, aggressive_policy2, conservative_policy1, conservative_policy2, \
+         moderate_policy1, moderate_policy2 = read_npz_to_variables(filename)
 
-    print("Cost to Go")
-    for k in range(stage_count + 2):
-        print("V1[{}] = {}".format(k, ctg1[k]))
-    print('\n')
-    for k in range(stage_count + 2):
-        print("V2[{}] = {}".format(k, ctg2[k]))
-    print('\n')
-
-    print("Policies")
-    for k in range(stage_count + 1):
-        print("y[{}] = {}".format(k, policy1[k]))
-    print('\n')
-    for k in range(stage_count + 1):
-        print("z[{}] = {}".format(k, policy2[k]))
-    print('\n')
+    # print("Cost to Go")
+    # for k in range(stage_count + 2):
+    #     print("V1[{}] = {}".format(k, ctg1[k]))
+    # print('\n')
+    # for k in range(stage_count + 2):
+    #     print("V2[{}] = {}".format(k, ctg2[k]))
+    # print('\n')
+    #
+    # print("Policies")
+    # for k in range(stage_count + 1):
+    #     print("y[{}] = {}".format(k, policy1[k]))
+    # print('\n')
+    # for k in range(stage_count + 1):
+    #     print("z[{}] = {}".format(k, policy2[k]))
+    # print('\n')
 
     init_state_index = array_find(init_state, states)
+    player_pairs = [(aggressive_policy1, aggressive_policy2), (conservative_policy1, conservative_policy2),
+                    (moderate_policy1, moderate_policy2), (moderate_policy1, conservative_policy1),
+                    (moderate_policy1, aggressive_policy2), (conservative_policy1, aggressive_policy2)]
+    pair_labels = ["Aggressive vs. Aggressive", "Conservative vs. Conservative",
+                   "Moderate vs. Moderate", "Moderate vs. Conservative",
+                   "Moderate vs. Aggressive", "Conservative vs Aggressive"]
+    runs = 1
+    for pair, label in zip(player_pairs, pair_labels):
+        policy1 = pair[0]
+        policy2 = pair[1]
+        for i in range(runs):
+            u, d, states_played = play_game(policy1, policy2, dynamics, stage_count, init_state_index)
 
-    runs = 10
-    for i in range(runs):
-        u, d, states_played = play_game(policy1, policy2, dynamics, stage_count, init_state_index)
+            print("Control Inputs")
+            print('u =', u)
+            print('d =', d)
+            print('\n')
 
-        print("Control Inputs")
-        print('u =', u)
-        print('d =', d)
-        print('\n')
+            print("States Played")
+            for i in range(len(states_played)):
+                print("Stage {} =".format(i))
+                print(states[states_played[i]])
+            print('\n')
 
-        print("States Played")
-        for i in range(len(states_played)):
-            print("Stage {} =".format(i))
-            print(states[states_played[i]])
-        print('\n')
+            game_values = find_values(states_played, u, d, rank_cost1, rank_cost2, safety_cost1, safety_cost2)
+            print('Game values = ', game_values)
 
-        game_values = find_values(states_played, u, d, costs1, costs2)
-        print('Game values = ', game_values)
-
-        plot_race(states_played, states)
+            plot_race(states_played, states, label, i)
 print("The End")

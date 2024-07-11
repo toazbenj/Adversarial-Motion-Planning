@@ -10,7 +10,7 @@ from matplotlib.ticker import MultipleLocator
 import matplotlib.ticker as plticker
 
 
-def plot_race(states_played, states):
+def plot_race(states_played, states, label, number):
     """
     Visualize the race game by plotting the positions (distance and lane) of the players over time
     and their velocities on a separate graph, with each data point labeled with a timestamp.
@@ -75,7 +75,7 @@ def plot_race(states_played, states):
     axs[0].yaxis.set_major_locator(MultipleLocator(1))
     axs[0].set_xlabel('Distance')
     axs[0].set_ylabel('Lane')
-    axs[0].set_title('Player Positions (Distance vs Lane)')
+    axs[0].set_title('Player Positions (Distance vs Lane) ' + label + "-" + str(number))
     axs[0].legend(loc='center right')
     axs[0].grid(False)
 
@@ -90,7 +90,7 @@ def plot_race(states_played, states):
     axs[1].yaxis.set_major_locator(MultipleLocator(1))
     axs[1].set_xlabel('Stage')
     axs[1].set_ylabel('Velocity')
-    axs[1].set_title('Player Velocities over Time')
+    axs[1].set_title('Player Velocities over Time ' + label + "-" + str(number))
     axs[1].legend(loc='center right')
     axs[1].grid(False)
 
