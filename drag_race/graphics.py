@@ -1,7 +1,7 @@
 """
 Graphics
 
-Functions to graph state output and values from drag race game
+Functions to graph state output and values charts from drag race game
 """
 
 import numpy as np
@@ -16,7 +16,7 @@ def plot_race(states_played, states, label, number):
     :param states_played: List of indices of states played over the stages
     :param states: List of all possible states as 3x2 numpy arrays
     """
-    timestamps = ['T0', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8']
+    timestamps = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8']
 
     # Extract player positions and velocities over time from the states played
     player1_positions = [states[state_idx][:, 0] for state_idx in
@@ -33,39 +33,39 @@ def plot_race(states_played, states, label, number):
     player2_velocities = [state[2] for state in player2_positions]
 
     # Create a plot with two subplots
-    fig, axs = plt.subplots(2, 1, figsize=(10, 6))
+    fig, axs = plt.subplots(2, 1, figsize=(10, 5))
     plt.subplots_adjust(left=0.3, hspace=0.5)
 
     # Plot player positions (distance and lane)
-
-    axs[0].plot(player1_distances, player1_lanes, label='Player 1', marker='o', linestyle='-')
-    axs[0].plot(player2_distances, player2_lanes, label='Player 2', marker='s', linestyle='-')
+    axs[0].plot(player1_distances, player1_lanes, label='Player 1', marker='o', linestyle='-', color='#3b719f')
+    axs[0].plot(player2_distances, player2_lanes, label='Player 2', marker='s', linestyle='-', color='#e64345')
     # axs[0].invert_yaxis()
 
     # Ensure there is some minimum range for the axes
     axs[0].set_xlim(-0.1, len(states_played)-0.9)
-    axs[0].set_ylim(max(player1_lanes + player2_lanes)+0.1, min(player1_lanes + player2_lanes)-0.1)
+    axs[0].set_ylim(max(player1_lanes + player2_lanes)+0.1,
+                    min(player1_lanes + player2_lanes)-0.1)
 
-    offset1 = 0.05
-    offset2 = 0.05
+    offset1 = 0
+    offset2 = 0
     last_coords1 = ()
     last_coords2 = ()
     for i in range(len(player1_positions)):
         txt = timestamps[i]
 
         if last_coords1 == (player1_distances[i], player1_lanes[i]):
-            offset1 += 0.1
+            offset1 += 0.05
         else:
-            offset1 = 0.05
+            offset1 = 0
         axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]),
-                        (player1_distances[i] + offset1, player1_lanes[i] + 0.05))
+                        (player1_distances[i] + offset1, player1_lanes[i] + 0.12), color='#3b719f')
 
         if last_coords2 == (player2_distances[i], player2_lanes[i]):
-            offset2 += 0.1
+            offset2 += 0.05
         else:
-            offset2 = 0.05
+            offset2 = 0
         axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]),
-                        (player2_distances[i] + offset2, player2_lanes[i] + 0.05))
+                        (player2_distances[i] + offset2, player2_lanes[i] - 0.05), color='#e64345')
 
         last_coords1 = (player1_distances[i], player1_lanes[i])
         last_coords2 = (player2_distances[i], player2_lanes[i])
@@ -73,25 +73,30 @@ def plot_race(states_played, states, label, number):
     axs[0].yaxis.set_major_locator(MultipleLocator(1))
     axs[0].set_xlabel('Distance')
     axs[0].set_ylabel('Lane')
-    axs[0].set_title('Player Positions (Distance vs Lane) ' + label + "-" + str(number))
+    axs[0].set_title('Race Position Overhead View')
     axs[0].legend(loc='center right')
+
     axs[0].grid(False)
+    axs[0].spines['top'].set_visible(False)
+    axs[0].spines['right'].set_visible(False)
 
     # Plot player velocities
-    axs[1].plot(player1_velocities, label='Player 1', marker='o', linestyle='-')
-    axs[1].plot(player2_velocities, label='Player 2', marker='s', linestyle='-')
+    axs[1].plot(player1_velocities, label='Player 1', marker='o', linestyle='-', color='#3b719f')
+    axs[1].plot(player2_velocities, label='Player 2', marker='s', linestyle='-', color='#e64345')
 
     # Ensure there is some minimum range for the axes
     axs[1].set_xlim(-0.1, len(states_played)-0.9)
-    axs[1].set_ylim(min(player1_velocities + player2_velocities)-0.1, max(player1_velocities + player2_velocities)+0.1)
+    axs[1].set_ylim(-0.1, 1.1)
 
     axs[1].yaxis.set_major_locator(MultipleLocator(1))
     axs[1].set_xlabel('Stage')
     axs[1].set_ylabel('Velocity')
-    axs[1].set_title('Player Velocities over Time ' + label + "-" + str(number))
+    axs[1].set_title('Player Velocities for Each Stage')
     axs[1].legend(loc='center right')
-    axs[1].grid(False)
 
+    axs[1].grid(False)
+    axs[1].spines['top'].set_visible(False)
+    axs[1].spines['right'].set_visible(False)
     # Show the plot
     plt.tight_layout()
     plt.savefig("plots/Race_Visuals/" + label + "/" + str(number) + ".png")
@@ -106,67 +111,61 @@ def plot_average_cost(average_cost, label):
     labels = ['Player 1 Rank', 'Player 1 Safety', 'Player 2 Rank', 'Player 2 Safety']
 
     # Plot the bar graph
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(10, 5))
     x = np.arange(len(labels))
-    ax.bar(x, costs, color=['#619ed6', '#6ba547', '#b77ea3', '#e64345'])  # Using muted colors
+    ax.bar(x, costs, color=['#e64345', '#6ba547', '#e64345', '#6ba547'])  # Using muted colors
 
     ax.set_xlabel('Player Objectives')
     ax.set_ylabel('Average Cost')
-    ax.set_title('Average Cost- ' + label)
+    # ax.set_title('Average Cost- ' + label)
 
-    ax.set_ylim(0, 20)
+    ax.set_ylim(0, 14)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
 
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
     fig.savefig("plots/Average_Costs/" + label + ".png")
-    plt.show()
+    # plt.show()
     plt.close()
 
+
 def plot_pareto_front(average_cost, labels):
-    fig, axs = plt.subplots(2, 1, figsize=(10, 6))
-    plt.subplots_adjust(left=0.3, hspace=0.5)
+    # fig = plt.figure(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(10, 10))
 
-    # Experimental
-    for i, costs in enumerate(average_cost):
-        point = costs[0]
-        axs[0].scatter(point[0], point[1], label=labels[i])
-    axs[0].set_title('Player 1 Pareto Frontier')
-    axs[0].set_xlabel('Rank Cost')
-    axs[0].set_ylabel('Safety Cost')
-    axs[0].legend(loc='center right')
-    axs[0].set_xlim(left=0)
-    axs[0].set_ylim(bottom=0)
-    axs[0].set_ylim(0, 20)
-    axs[0].set_xlim(0, 20)
+    colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'cyan', 'magenta']
 
     for i, costs in enumerate(average_cost):
-        point = costs[1]
-        axs[1].scatter(point[0], point[1], label=labels[i])
-    axs[1].set_title('Player 2 Pareto Frontier')
-    axs[1].set_xlabel('Rank Cost')
-    axs[1].set_ylabel('Safety Cost')
-    axs[1].legend(loc='center right')
-    axs[1].set_xlim(left=0)
-    axs[1].set_ylim(bottom=0)
-    axs[1].set_ylim(0, 20)
-    axs[1].set_xlim(0, 20)
+        point1 = costs[0]
+        point2 = costs[1]
+        color = colors[i % len(colors)]
+        plt.scatter(point1[0], point1[1], color=color, label=labels[i])
+        plt.annotate('P1', (point1[0], point1[1]), textcoords="offset points", xytext=(10, 0), ha='center')
+        plt.scatter(point2[0], point2[1], color=color)
+        plt.annotate('P2', (point2[0], point2[1]), textcoords="offset points", xytext=(10, 0), ha='center')
 
-    # # Theoretical
-    # for point in theoretical_cost:
-    #     axs[1].scatter(point[0], point[1], label=point[2])
-    # axs[1].set_title('Pareto Front - Set 2')
-    # axs[1].set_xlabel('Rank (r)')
-    # axs[1].set_ylabel('Safety (s)')
-    # axs[1].legend()
-    # axs[1].set_xlim(left=0)
-    # axs[1].set_ylim(bottom=0)
+    # Remove duplicate labels in the legend
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
 
-    # error
+    # plt.title('Multi-Scenario Pareto Frontier')
+    plt.xlabel('Average Rank Cost')
+    plt.ylabel('Average Safety Cost')
+    plt.legend(by_label.values(), by_label.keys(), loc='lower left',
+               title="Scenario (Player 1-Player 2)", fontsize='15', title_fontsize=15)
+    plt.ylim(6.5, 14)
+    plt.xlim(4, 9)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
     fig.savefig("plots/Pareto_Fronts/" + "pareto.png")
-    plt.show()
+    # plt.show()
     plt.close()
+
 
 if __name__ == '__main__':
     # Example data (to be replaced with actual data from your simulation)
@@ -194,8 +193,8 @@ if __name__ == '__main__':
     # average_costs = np.array([[10, 20], [4,7]])
     # plot_average_cost(average_costs, 'test')
 
-    pair_labels = ["Aggressive_Aggressive", "Conservative_Conservative",
-                   "Moderate_Moderate", "Moderate_Conservative",
-                   "Moderate_Aggressive", "Conservative_Aggressive"]
+    pair_labels = ["Aggressive-Aggressive", "Conservative-Conservative",
+                   "Moderate-Moderate", "Moderate-Conservative",
+                   "Moderate-Aggressive", "Conservative-Aggressive"]
     data = np.load("results.npz", allow_pickle=True)
     plot_pareto_front(data['values'], pair_labels)

@@ -474,7 +474,7 @@ def generate_moderate_policies(aggressive_policy1, aggressive_policy2, conservat
     return y, z
 
 
-def write_variables_to_npz(filename, variables):
+def write_npz_build(filename, variables):
     """
     Write variables to a npz file
     :param filename: name of data file str
@@ -489,7 +489,7 @@ def write_variables_to_npz(filename, variables):
     np.savez(filename, **data_dict)
 
 
-def read_npz_to_variables(filename):
+def read_npz_build(filename):
     """
     Load variables from npz file
     :param filename: name of data file str
@@ -523,3 +523,30 @@ def read_npz_to_variables(filename):
            rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics, \
            aggressive_policy1, aggressive_policy2, conservative_policy1, conservative_policy2, \
            moderate_policy1, moderate_policy2
+
+
+
+def write_npz_play(filename, variables):
+    """
+    Write variables to a npz file
+    :param filename: name of data file str
+    :param variables: tuple of offline calculated game variables
+    """
+    keys = ["average_game_values", "states_played", "states", "pair_labels"]
+    data_dict = {key: value for key, value in zip(keys, variables)}
+    np.savez(filename, **data_dict)
+
+
+def read_npz_play(filename):
+    """
+    Load variables from npz file
+    :param filename: name of data file str
+    :return: tuple of offline calculated game variables
+    """
+    data = np.load(filename, allow_pickle=True)
+    average_game_values = data["average_game_values"]
+    states_played = data["states_played"]
+    states = data['states']
+    pair_labels = data["pair_labels"]
+
+    return average_game_values, states_played, states, pair_labels
