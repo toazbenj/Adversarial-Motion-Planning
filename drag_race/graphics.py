@@ -17,6 +17,7 @@ def plot_race(states_played, states, label, number):
     :param states: List of all possible states as 3x2 numpy arrays
     """
     timestamps = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8']
+    fontsize = 15
 
     # Extract player positions and velocities over time from the states played
     player1_positions = [states[state_idx][:, 0] for state_idx in
@@ -44,7 +45,9 @@ def plot_race(states_played, states, label, number):
     # Ensure there is some minimum range for the axes
     axs[0].set_xlim(-0.1, len(states_played)-0.9)
     axs[0].set_ylim(max(player1_lanes + player2_lanes)+0.1,
-                    min(player1_lanes + player2_lanes)-0.1)
+                    min(player1_lanes + player2_lanes)-0.2)
+    axs[0].xaxis.set_tick_params(labelsize=fontsize)
+    axs[0].yaxis.set_tick_params(labelsize=fontsize)
 
     offset1 = 0
     offset2 = 0
@@ -54,27 +57,27 @@ def plot_race(states_played, states, label, number):
         txt = timestamps[i]
 
         if last_coords1 == (player1_distances[i], player1_lanes[i]):
-            offset1 += 0.05
+            offset1 += 0.07
         else:
             offset1 = 0
         axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]),
-                        (player1_distances[i] + offset1, player1_lanes[i] + 0.12), color='#3b719f')
+                        (player1_distances[i] + offset1, player1_lanes[i] + 0.17), color='#3b719f', fontsize=fontsize)
 
         if last_coords2 == (player2_distances[i], player2_lanes[i]):
-            offset2 += 0.05
+            offset2 += 0.07
         else:
             offset2 = 0
         axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]),
-                        (player2_distances[i] + offset2, player2_lanes[i] - 0.05), color='#e64345')
+                        (player2_distances[i] + offset2, player2_lanes[i] - 0.05), color='#e64345', fontsize=fontsize)
 
         last_coords1 = (player1_distances[i], player1_lanes[i])
         last_coords2 = (player2_distances[i], player2_lanes[i])
 
     axs[0].yaxis.set_major_locator(MultipleLocator(1))
-    axs[0].set_xlabel('Distance')
-    axs[0].set_ylabel('Lane')
-    axs[0].set_title('Race Position Overhead View')
-    axs[0].legend(loc='center right')
+    axs[0].set_xlabel('Distance', fontsize=fontsize)
+    axs[0].set_ylabel('Lane', fontsize=fontsize)
+    axs[0].set_title('Race Position Overhead View', fontsize=fontsize)
+    axs[0].legend(loc='center right', fontsize=fontsize)
 
     axs[0].grid(False)
     axs[0].spines['top'].set_visible(False)
@@ -87,12 +90,14 @@ def plot_race(states_played, states, label, number):
     # Ensure there is some minimum range for the axes
     axs[1].set_xlim(-0.1, len(states_played)-0.9)
     axs[1].set_ylim(-0.1, 1.1)
+    axs[1].xaxis.set_tick_params(labelsize=fontsize)
+    axs[1].yaxis.set_tick_params(labelsize=fontsize)
 
     axs[1].yaxis.set_major_locator(MultipleLocator(1))
-    axs[1].set_xlabel('Stage')
-    axs[1].set_ylabel('Velocity')
-    axs[1].set_title('Player Velocities for Each Stage')
-    axs[1].legend(loc='center right')
+    axs[1].set_xlabel('Stage', fontsize=fontsize)
+    axs[1].set_ylabel('Velocity', fontsize=fontsize)
+    axs[1].set_title('Player Velocities for Each Stage', fontsize=fontsize)
+    axs[1].legend(loc='center right', fontsize=fontsize)
 
     axs[1].grid(False)
     axs[1].spines['top'].set_visible(False)
@@ -104,27 +109,33 @@ def plot_race(states_played, states, label, number):
     plt.close()
 
 def plot_average_cost(average_cost, label):
+    fontsize = 17
     # Flatten the array to a 1D array
     costs = average_cost.flatten()
 
     # Define labels for each bar
-    labels = ['Player 1 Rank', 'Player 1 Safety', 'Player 2 Rank', 'Player 2 Safety']
+    labels = ['P1 Rank', 'P1 Safety', 'P2 Rank', 'P2 Safety']
 
     # Plot the bar graph
     fig, ax = plt.subplots(figsize=(10, 5))
     x = np.arange(len(labels))
     ax.bar(x, costs, color=['#e64345', '#6ba547', '#e64345', '#6ba547'])  # Using muted colors
+    plt.subplots_adjust(bottom=0.15)
 
-    ax.set_xlabel('Player Objectives')
-    ax.set_ylabel('Average Cost')
+    ax.set_xlabel('Player Objectives', fontsize=fontsize)
+    ax.set_ylabel('Average Cost Per Game', fontsize=fontsize)
     # ax.set_title('Average Cost- ' + label)
 
     ax.set_ylim(0, 14)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
 
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    plt.tight_layout()
 
     fig.savefig("plots/Average_Costs/" + label + ".png")
     # plt.show()
@@ -132,6 +143,7 @@ def plot_average_cost(average_cost, label):
 
 
 def plot_pareto_front(average_cost, labels):
+    fontsize = 17
     # fig = plt.figure(figsize=(10, 10))
     fig, ax = plt.subplots(figsize=(10, 10))
 
@@ -142,19 +154,24 @@ def plot_pareto_front(average_cost, labels):
         point2 = costs[1]
         color = colors[i % len(colors)]
         plt.scatter(point1[0], point1[1], color=color, label=labels[i])
-        plt.annotate('P1', (point1[0], point1[1]), textcoords="offset points", xytext=(10, 0), ha='center')
+        plt.annotate('P1', (point1[0], point1[1]), textcoords="offset points", xytext=(fontsize, 0),
+                     ha='center', fontsize=fontsize)
         plt.scatter(point2[0], point2[1], color=color)
-        plt.annotate('P2', (point2[0], point2[1]), textcoords="offset points", xytext=(10, 0), ha='center')
+        plt.annotate('P2', (point2[0], point2[1]), textcoords="offset points", xytext=(fontsize, 0),
+                     ha='center', fontsize=fontsize)
 
     # Remove duplicate labels in the legend
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
 
     # plt.title('Multi-Scenario Pareto Frontier')
-    plt.xlabel('Average Rank Cost')
-    plt.ylabel('Average Safety Cost')
+    plt.xlabel('Average Rank Cost Per Game', fontsize=fontsize)
+    plt.ylabel('Average Safety Cost Per Game', fontsize=fontsize)
     plt.legend(by_label.values(), by_label.keys(), loc='lower left',
-               title="Scenario (Player 1-Player 2)", fontsize='15', title_fontsize=15)
+               title="Scenario (Player 1-Player 2)", fontsize=fontsize, title_fontsize=fontsize)
+
+    plt.yticks(fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
     plt.ylim(6.5, 14)
     plt.xlim(4, 9)
 

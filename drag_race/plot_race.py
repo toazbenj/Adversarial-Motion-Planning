@@ -25,8 +25,8 @@ for f in files:
 
 for i in range(len(pair_labels)):
     plot_average_cost(average_game_values[i], pair_labels[i])
-
-    for j in range(50):
-        plot_race(states_played[i, j], states, pair_labels[i], j)
+    #
+    # for j in range(50):
+    #     plot_race(states_played[i, j], states, pair_labels[i], j)
 
 plot_pareto_front(average_game_values, pair_labels)
