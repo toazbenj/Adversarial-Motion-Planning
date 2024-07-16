@@ -1,7 +1,7 @@
 """
 Graphics
 
-Functions to graph state output and values charts from drag race game
+Functions to graph state output and values charts for drag race game
 """
 
 import numpy as np
@@ -15,6 +15,8 @@ def plot_race(states_played, states, label, number):
 
     :param states_played: List of indices of states played over the stages
     :param states: List of all possible states as 3x2 numpy arrays
+    :param label: str with type of game being played (racer types)
+    :param number: int plot number
     """
     timestamps = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8']
     fontsize = 15
@@ -109,6 +111,12 @@ def plot_race(states_played, states, label, number):
     plt.close()
 
 def plot_average_cost(average_cost, label):
+    '''
+    Plots the costs for each player with respect to safety and rank
+    :param average_cost: array of cost values
+    :param label: str race type
+    '''
+
     fontsize = 17
     # Flatten the array to a 1D array
     costs = average_cost.flatten()
@@ -143,6 +151,11 @@ def plot_average_cost(average_cost, label):
 
 
 def plot_pareto_front(average_cost, labels):
+    """
+    Plot outcomes for all race types on cost space
+    :param average_cost: array of outcomes for each player with respect to each objective
+    :param labels: str race type
+    """
     fontsize = 17
     # fig = plt.figure(figsize=(10, 10))
     fig, ax = plt.subplots(figsize=(10, 10))

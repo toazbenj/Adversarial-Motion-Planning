@@ -1,9 +1,9 @@
 """
 Play Drag Race
 
-Run simulation of race using offline calculated policies, generate experimental data. Run this second after build_race.py.
-It will load the saved_game.npz file and pair up the players for several races. Next it will tally the game values of each
-run and save them in results.npz. After this you should run plot_race.py to visualize the data.
+Run simulation of race using offline calculated policies, generate experimental data. Run this second after
+build_race.py. It will load the saved_game.npz file and pair up the players for several races. Next it will tally the
+game values of each run and save them in results.npz. After this you should run plot_race.py to visualize the data.
 """
 
 from graphics import plot_race, plot_pareto_front, plot_average_cost
@@ -12,7 +12,17 @@ import random
 import os
 import glob
 
+
 def play_game(policy1, policy2, dynamics, stage_count, init_state_index):
+    """
+    Run race to instantiate actions from probabilistic policies
+    :param policy1: array of probability floats (states x control inputs)
+    :param policy2: array of probability floats (states x control inputs)
+    :param dynamics: array of state indexes (states x control inputs x control inputs)
+    :param stage_count: int number of decision epochs
+    :param init_state_index: int index of the 1st state in state list
+    :return: list of control input indices for each player, list of state indices
+    """
     control1 = np.zeros(stage_count + 1, dtype=int)
     control2 = np.zeros(stage_count + 1, dtype=int)
     states_played = np.zeros(stage_count + 2, dtype=int)
@@ -49,8 +59,10 @@ def find_values(states_played, u, d, rank_cost1, rank_cost2, safety_cost1, safet
     :param states_played: list of numpy arrays of states
     :param u: player 1 control inputs for each stage
     :param d: player 2 control inputs for each stage
-    :param costs1: player 1 costs for all configurations
-    :param costs2: player 2 costs for all configurations
+    :param rank_cost1: array of rank cost ints for player 1 (states x control inputs x control inputs)
+    :param rank_cost2: array of rank cost ints for player 2 (states x control inputs x control inputs)
+    :param safety_cost1: array of safety cost ints for player 1 (states x control inputs x control inputs)
+    :param safety_cost2: array of safety cost ints for player 2 (states x control inputs x control inputs)
     :return: game values for each player list
     """
     values = np.zeros((2, 2))
@@ -64,21 +76,6 @@ def find_values(states_played, u, d, rank_cost1, rank_cost2, safety_cost1, safet
         values[0] += np.array([int(round_rank_cost1), int(round_safety_cost1)])
         values[1] += np.array([int(round_rank_cost2), int(round_safety_cost2)])
     return values
-
-
-def calculate_theoretical_values(safety_cost1, safety_cost2, rank_cost1, rank_cost2, player_pairs):
-    theoretical_values = np.zeros((len(player_pairs), 4, ))
-    for policies in player_pairs:
-        y = policies[0]
-        z = policies[1]
-
-        p1_safety_cost = y @ safety_cost1 @ z
-        p2_safety_cost = y @ safety_cost2 @ z
-
-        p1_rank_cost = y @ rank_cost1 @ z
-        p2_rank_cost = y @ rank_cost2 @ z
-
-        theoretical_values.append(p1_safety_cost)
 
 
 if __name__ == '__main__':

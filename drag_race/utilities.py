@@ -7,11 +7,13 @@ helper functions. Most assume game is bimatrix, where each player is a minimizer
 import numpy as np
 from scipy.optimize import linprog
 
+
 def collision_check(state, control_input1, control_input2):
     """
     Compares player positions and returns whether they are in the same position or collided during the next maneuver
     :param state: matrix of distance, lane, and velocity for each player
-    :param control_input: matrix of lane change and acceleration for each player
+    :param control_input1: array of 2 control input int values for lane and speed change
+    :param control_input2: array of 2 control input int values for lane and speed change
     :return: boolean
     """
 
@@ -43,7 +45,8 @@ def safety_cost(state, control_input1, control_input2, penalty_lst):
     Compute the cost matrix associated with the current game state for each player
 
     :param state: matrix of distance, lane, and velocity for each player
-    :param control_input: matrix of lane change and acceleration for each player
+    :param control_input1: array of 2 control input int values for lane and speed change
+    :param control_input2: array of 2 control input int values for lane and speed change
     :param penalty_lst: list of costs associated for maintaining speed, deceleration,
     acceleration,  turns, and collisions
     :return: cost matrix with for safety and rank objectives for each player
@@ -187,14 +190,14 @@ def generate_control_inputs():
 def generate_costs(state_lst, control_input_lst, penalty_lst, cost_function):
     """
     Calculate stage cost given each state and control input
-
     :param state_lst: list of state arrays
     :param control_input_lst: list of all possible control input arrays of lane change and acceleration values
+    :param penalty_lst: list of costs associated for maintaining speed, deceleration, acceleration,  turns, collisions
+    :param cost_function: function used as objective (safety or rank)
     :return: tensor of stage cost indexed by each state/control input
     """
 
-    cost1 = np.empty((len(state_lst), len(control_input_lst),
-                                       len(control_input_lst)), dtype=int) * np.nan
+    cost1 = np.empty((len(state_lst), len(control_input_lst), len(control_input_lst)), dtype=int) * np.nan
     cost2 = cost1.copy()
 
     # for k in range(stage_count):
@@ -206,7 +209,7 @@ def generate_costs(state_lst, control_input_lst, penalty_lst, cost_function):
                 next_state_index = array_find(next_state_mat, state_lst)
                 if next_state_index != -1:
                     cost1[i, j, l], cost2[i, j, l] = cost_function(state_lst[i], control_input_lst[j],
-                                                               control_input_lst[l], penalty_lst)
+                                                                   control_input_lst[l], penalty_lst)
 
     return cost1, cost2
 
@@ -311,6 +314,13 @@ def mixed_policy_2d(payoff_matrix, iterations=5000, is_min_max=True):
 
 
 def check_end_state(state_idx, state_lst, stage_count):
+    """
+    Checks if the current state is a terminal state
+    :param state_idx: int current state index
+    :param state_lst: list of state arrays
+    :param stage_count: int number of decision epochs until the final state
+    :return: bool if current state is terminal state
+    """
     state = state_lst[state_idx]
     if state[0][0] == stage_count + 1:
         return True
@@ -324,6 +334,9 @@ def mixed_policy_3d(total_cost, state_lst, stage_count, is_min_max=True):
     """
     Find mixed saddle point game value for every state
     :param total_cost: 3D cost array of state x control input x control input
+    :param state_lst: list of state arrays
+    :param stage_count: int number of stages to play
+    :param is_min_max: bool whether player 1 is minimizer or player 2
     :return: cost to go array of state x 1
     """
 
@@ -345,13 +358,16 @@ def mixed_policy_3d(total_cost, state_lst, stage_count, is_min_max=True):
             row_policy[state] = remap_values(total_cost[state], small_row_policy)
             col_policy[state] = remap_values(total_cost[state], small_col_policy, is_row=False)
 
-    return np.around(row_policy,2), np.around(col_policy,2), ctg
+    return np.around(row_policy, 2), np.around(col_policy, 2), ctg
 
 
 def bimatrix_mixed_policy(total_cost1, total_cost2, state_lst, stage_count):
     """
     Find mixed saddle point game value for every state
-    :param total_cost: 3D cost array of state x control input x control input
+    :param total_cost1: 3D cost array of state x control input x control input
+    :param total_cost2: 3D cost array of state x control input x control input
+    :param state_lst: list of state arrays
+    :param stage_count: int number of stages to play
     :return: cost to go array of state x 1
     """
 
@@ -374,10 +390,16 @@ def bimatrix_mixed_policy(total_cost1, total_cost2, state_lst, stage_count):
             col_policy[state] = remap_values(total_cost2[state], small_col_policy, is_row=False)
             print(state, col_policy[state])
 
-    return np.around(row_policy,2), np.around(col_policy,2), ctg1, ctg2
+    return np.around(row_policy, 2), np.around(col_policy, 2), ctg1, ctg2
 
 
 def scipy_solve(A, B):
+    """
+    Quadratic program implementation for finding policies for 2 minimizers
+    :param A: player 1 cost array
+    :param B: player 2 cost array
+    :return: list of floats optimal policies x2, float payoffs x2
+    """
     m, n = A.shape
 
     # Construct the objective function vector
@@ -388,7 +410,7 @@ def scipy_solve(A, B):
     Ain_top = np.hstack((np.zeros((m, m)), -A, np.ones((m, 1)), np.zeros((m, 1))))
     Ain_bottom = np.hstack((-B.T, np.zeros((n, n + 1)), np.ones((n, 1))))
     Ain = np.vstack((Ain_top, Ain_bottom))
-    bin = np.zeros(m + n)
+    b_in = np.zeros(m + n)
 
     # Construct the equality constraint matrix Aeq and vector beq
     Aeq = np.zeros((2, m + n + 2))
@@ -400,7 +422,7 @@ def scipy_solve(A, B):
     bounds = [(0, 1)] * (m + n) + [(-np.inf, np.inf), (-np.inf, np.inf)]
 
     # Solve the linear program
-    result = linprog(c, A_ub=Ain, b_ub=bin, A_eq=Aeq, b_eq=beq, bounds=bounds)
+    result = linprog(c, A_ub=Ain, b_ub=b_in, A_eq=Aeq, b_eq=beq, bounds=bounds)
 
     if result.success:
         x = result.x
@@ -414,8 +436,9 @@ def scipy_solve(A, B):
 
 
 def clean_matrix(mat):
-    """Remove rows/cols with all NaNs, keep matrix shape
-    :param mat: numpy array
+    """
+    Remove rows/cols with all NaNs, keep matrix shape
+    :param mat: array with NaN values
     :return: numpy array with no nans, retains relative position of real values
     """
     mat = mat[~np.isnan(mat).all(axis=1)]
@@ -447,8 +470,9 @@ def remap_values(mat, small_arr, is_row=True):
     """
     large_arr = np.zeros(mat.shape[1])
     small_lst = list(small_arr)
+
     if is_row:
-        mapping_arr = np.isfinite(mat[:, ~np.isnan(mat).all(axis=0)])[:,0]
+        mapping_arr = np.isfinite(mat[:, ~np.isnan(mat).all(axis=0)])[:, 0]
     else:
         mapping_arr = np.isfinite(mat[~np.isnan(mat).all(axis=1)])[0]
 
@@ -481,9 +505,9 @@ def write_npz_build(filename, variables):
     :param variables: tuple of offline calculated game variables
     """
     keys = ["stage_count", "rank_penalty_lst", "safety_penalty_lst", "init_state", "states", "control_inputs",
-        "rank_cost1", "rank_cost2", "safety_cost1", "safety_cost2", "dynamics",
-        "aggressive_policy1", "aggressive_policy2", "conservative_policy1", "conservative_policy2",
-        "moderate_policy1", "moderate_policy2"]
+            "rank_cost1", "rank_cost2", "safety_cost1", "safety_cost2", "dynamics",
+            "aggressive_policy1", "aggressive_policy2", "conservative_policy1", "conservative_policy2",
+            "moderate_policy1", "moderate_policy2"]
 
     data_dict = {key: value for key, value in zip(keys, variables)}
     np.savez(filename, **data_dict)
@@ -520,10 +544,9 @@ def read_npz_build(filename):
     moderate_policy2 = data['moderate_policy2']
 
     return stage_count, rank_penalty_lst, safety_penalty_lst, init_state, states, control_inputs, \
-           rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics, \
-           aggressive_policy1, aggressive_policy2, conservative_policy1, conservative_policy2, \
-           moderate_policy1, moderate_policy2
-
+        rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics, \
+        aggressive_policy1, aggressive_policy2, conservative_policy1, conservative_policy2, \
+        moderate_policy1, moderate_policy2
 
 
 def write_npz_play(filename, variables):
