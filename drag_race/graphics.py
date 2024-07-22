@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 
-def plot_race(states_played, states, label, number):
+def plot_race_view(states_played, states, label, result_directory, number):
     """
     Visualize the race game by plotting the positions (distance and lane) of the players over time
     and their velocities on a separate graph, with each data point labeled with a timestamp.
@@ -63,14 +63,14 @@ def plot_race(states_played, states, label, number):
         else:
             offset1 = 0
         axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]),
-                        (player1_distances[i] + offset1, player1_lanes[i] + 0.17), color='#3b719f', fontsize=fontsize)
+                        (player1_distances[i] + offset1, player1_lanes[i] + 0.22), color='#3b719f', fontsize=fontsize-10)
 
         if last_coords2 == (player2_distances[i], player2_lanes[i]):
             offset2 += 0.07
         else:
             offset2 = 0
         axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]),
-                        (player2_distances[i] + offset2, player2_lanes[i] - 0.05), color='#e64345', fontsize=fontsize)
+                        (player2_distances[i] + offset2, player2_lanes[i] - 0.08), color='#e64345', fontsize=fontsize-10)
 
         last_coords1 = (player1_distances[i], player1_lanes[i])
         last_coords2 = (player2_distances[i], player2_lanes[i])
@@ -79,7 +79,7 @@ def plot_race(states_played, states, label, number):
     axs[0].set_xlabel('Distance', fontsize=fontsize)
     axs[0].set_ylabel('Lane', fontsize=fontsize)
     axs[0].set_title('Race Position Overhead View', fontsize=fontsize)
-    axs[0].legend(loc='center right', fontsize=fontsize)
+    axs[0].legend(loc='center right', fontsize=fontsize-15)
 
     axs[0].grid(False)
     axs[0].spines['top'].set_visible(False)
@@ -99,25 +99,25 @@ def plot_race(states_played, states, label, number):
     axs[1].set_xlabel('Stage', fontsize=fontsize)
     axs[1].set_ylabel('Velocity', fontsize=fontsize)
     axs[1].set_title('Player Velocities for Each Stage', fontsize=fontsize)
-    axs[1].legend(loc='center right', fontsize=fontsize)
+    axs[1].legend(loc='center right', fontsize=fontsize-15)
 
     axs[1].grid(False)
     axs[1].spines['top'].set_visible(False)
     axs[1].spines['right'].set_visible(False)
     # Show the plot
     plt.tight_layout()
-    plt.savefig("plots/Race_Visuals/" + label + "/" + str(number) + ".png")
+    plt.savefig("plots/"+result_directory+"/Race_Visuals/" + label + "/" + str(number) + ".png")
     # plt.show()
     plt.close()
 
-def plot_average_cost(average_cost, label):
+def plot_average_cost(average_cost, label, result_directory):
     '''
     Plots the costs for each player with respect to safety and rank
     :param average_cost: array of cost values
     :param label: str race type
     '''
 
-    fontsize = 17
+    fontsize = 15
     # Flatten the array to a 1D array
     costs = average_cost.flatten()
 
@@ -134,7 +134,7 @@ def plot_average_cost(average_cost, label):
     ax.set_ylabel('Average Cost Per Game', fontsize=fontsize)
     # ax.set_title('Average Cost- ' + label)
 
-    ax.set_ylim(0, 14)
+    ax.set_ylim(0, 10)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
 
@@ -145,31 +145,33 @@ def plot_average_cost(average_cost, label):
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
 
-    fig.savefig("plots/Average_Costs/" + label + ".png")
+    fig.savefig("plots/"+result_directory+"/Average_Costs/" + label + ".png")
     # plt.show()
     plt.close()
 
 
-def plot_pareto_front(average_cost, labels):
+def plot_pareto_front(average_cost, labels, result_directory,):
     """
     Plot outcomes for all race types on cost space
     :param average_cost: array of outcomes for each player with respect to each objective
     :param labels: str race type
     """
-    fontsize = 17
-    # fig = plt.figure(figsize=(10, 10))
+    fontsize = 20
     fig, ax = plt.subplots(figsize=(10, 10))
 
     colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'cyan', 'magenta']
+    markers = [",", "o", "v", "^", "<", ">"]
 
     for i, costs in enumerate(average_cost):
         point1 = costs[0]
         point2 = costs[1]
         color = colors[i % len(colors)]
-        plt.scatter(point1[0], point1[1], color=color, label=labels[i])
+        marker = markers[i % len(markers)]
+
+        plt.scatter(point1[0], point1[1], color=color, label=labels[i], marker=marker)
         plt.annotate('P1', (point1[0], point1[1]), textcoords="offset points", xytext=(fontsize, 0),
                      ha='center', fontsize=fontsize)
-        plt.scatter(point2[0], point2[1], color=color)
+        plt.scatter(point2[0], point2[1], color=color,  marker=marker)
         plt.annotate('P2', (point2[0], point2[1]), textcoords="offset points", xytext=(fontsize, 0),
                      ha='center', fontsize=fontsize)
 
@@ -180,19 +182,19 @@ def plot_pareto_front(average_cost, labels):
     # plt.title('Multi-Scenario Pareto Frontier')
     plt.xlabel('Average Rank Cost Per Game', fontsize=fontsize)
     plt.ylabel('Average Safety Cost Per Game', fontsize=fontsize)
-    plt.legend(by_label.values(), by_label.keys(), loc='lower left',
-               title="Scenario (Player 1-Player 2)", fontsize=fontsize, title_fontsize=fontsize)
+    plt.legend(by_label.values(), by_label.keys(), loc='lower right',
+               title="Scenario (Player 1-Player 2)", fontsize=fontsize-9, title_fontsize=fontsize-9)
 
     plt.yticks(fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
-    plt.ylim(6.5, 14)
-    plt.xlim(4, 9)
+    # plt.ylim(0, 10)
+    # plt.xlim(0, 10)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
-    fig.savefig("plots/Pareto_Fronts/" + "pareto.png")
+    fig.savefig("plots/"+result_directory+"/Pareto_Fronts/" + "pareto.png")
     # plt.show()
     plt.close()
 
@@ -226,5 +228,5 @@ if __name__ == '__main__':
     pair_labels = ["Aggressive-Aggressive", "Conservative-Conservative",
                    "Moderate-Moderate", "Moderate-Conservative",
                    "Moderate-Aggressive", "Conservative-Aggressive"]
-    data = np.load("results.npz", allow_pickle=True)
+    data = np.load("offline_calcs/results.npz", allow_pickle=True)
     plot_pareto_front(data['values'], pair_labels)

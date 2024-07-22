@@ -197,7 +197,7 @@ def generate_costs(state_lst, control_input_lst, penalty_lst, cost_function):
     :return: tensor of stage cost indexed by each state/control input
     """
 
-    cost1 = np.empty((len(state_lst), len(control_input_lst), len(control_input_lst)), dtype=int) * np.nan
+    cost1 = np.empty((len(state_lst), len(control_input_lst), len(control_input_lst)), dtype=float) * np.nan
     cost2 = cost1.copy()
 
     # for k in range(stage_count):
@@ -237,10 +237,10 @@ def dynamics(state, control_input1, control_input2):
 
 def generate_dynamics(state_lst, control_input_lst):
     """
-    Make lookup table for next state given current state and player actions, implemented as nested dictionary
+    Make lookup table for next state given current state and player actions
     :param state_lst: list of all possible state arrays
     :param control_input_lst: list of all possible control input arrays
-    :return: array of dynamics, 3D, dimensions state, control input 1, control input 2
+    :return: array of dynamics, state x control_input1 x control_input2
     """
     dynamics_lookup_mat = np.empty((len(state_lst), len(control_input_lst),
                                     len(control_input_lst)), dtype=int) * np.nan
@@ -271,7 +271,8 @@ def expand_mat(small_mat, big_mat):
 
 def mixed_policy_2d(payoff_matrix, iterations=5000, is_min_max=True):
     """
-    Calculate the mixed policies and values for each player
+    Calculate the mixed policies and values for each player, security policies for one player at a time since non-ego
+    policy calculated is worst case for ego player, not best case for non-ego player (N-minimizers)
     :param payoff_matrix: game matrix with cost info
     :param is_min_max: if player 1 is minimizer or player 2 boolean
     :param iterations: number of loops in calculation
@@ -332,7 +333,7 @@ def check_end_state(state_idx, state_lst, stage_count):
 
 def mixed_policy_3d(total_cost, state_lst, stage_count, is_min_max=True):
     """
-    Find mixed saddle point game value for every state
+    Find mixed saddle point game value for every state (security policies)
     :param total_cost: 3D cost array of state x control input x control input
     :param state_lst: list of state arrays
     :param stage_count: int number of stages to play
@@ -363,7 +364,7 @@ def mixed_policy_3d(total_cost, state_lst, stage_count, is_min_max=True):
 
 def bimatrix_mixed_policy(total_cost1, total_cost2, state_lst, stage_count):
     """
-    Find mixed saddle point game value for every state
+    Find mixed saddle point game value for every state (approximate mixed nash equilibrium)
     :param total_cost1: 3D cost array of state x control input x control input
     :param total_cost2: 3D cost array of state x control input x control input
     :param state_lst: list of state arrays
@@ -395,7 +396,7 @@ def bimatrix_mixed_policy(total_cost1, total_cost2, state_lst, stage_count):
 
 def scipy_solve(A, B):
     """
-    Quadratic program implementation for finding policies for 2 minimizers
+    Quadratic program implementation for finding policies for 2 minimizers (approximate mixed nash equilibrium)
     :param A: player 1 cost array
     :param B: player 2 cost array
     :return: list of floats optimal policies x2, float payoffs x2
