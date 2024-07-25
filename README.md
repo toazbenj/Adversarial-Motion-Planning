@@ -1,5 +1,5 @@
 # Adversarial-Motion-Planning
-Discrete time dynamic game control system library with tools for building decision making strategies using cost-to-go and linear optimization. See Drag Race for simulation model of racing scenarios for autonomous vehicles. See navigation lab for ROS 1 implementation of leader/follower and lane merging games for turtlebot hardware using linear quadratic regulators and stopping states.
+Discrete time dynamic game control system library with tools for building decision making strategies using cost-to-go and linear optimization. See drag_race for simulation model of racing scenarios for autonomous vehicles. See navigation_lab for ROS 1 Melodic implementation of leader/follower and lane merging games for turtlebot hardware using linear quadratic regulators and stopping states.
 
 ![2](https://github.com/user-attachments/assets/9ed57d2a-0a0e-4fd7-b4fe-74d8ea3dca05) ![18](https://github.com/user-attachments/assets/a2843998-06ec-4ac7-a1da-eba47fa7270d)
 
