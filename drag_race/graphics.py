@@ -63,14 +63,14 @@ def plot_race_view(states_played, states, label, result_directory, number):
         else:
             offset1 = 0
         axs[0].annotate(txt, (player1_distances[i], player1_lanes[i]),
-                        (player1_distances[i] + offset1, player1_lanes[i] + 0.22), color='#3b719f', fontsize=fontsize-10)
+                        (player1_distances[i] + offset1, player1_lanes[i] + 0.22), color='#3b719f', fontsize=fontsize)
 
         if last_coords2 == (player2_distances[i], player2_lanes[i]):
             offset2 += 0.07
         else:
             offset2 = 0
         axs[0].annotate(txt, (player2_distances[i], player2_lanes[i]),
-                        (player2_distances[i] + offset2, player2_lanes[i] - 0.08), color='#e64345', fontsize=fontsize-10)
+                        (player2_distances[i] + offset2, player2_lanes[i] - 0.08), color='#e64345', fontsize=fontsize)
 
         last_coords1 = (player1_distances[i], player1_lanes[i])
         last_coords2 = (player2_distances[i], player2_lanes[i])
@@ -79,7 +79,7 @@ def plot_race_view(states_played, states, label, result_directory, number):
     axs[0].set_xlabel('Distance', fontsize=fontsize)
     axs[0].set_ylabel('Lane', fontsize=fontsize)
     axs[0].set_title('Race Position Overhead View', fontsize=fontsize)
-    axs[0].legend(loc='center right', fontsize=fontsize-15)
+    axs[0].legend(loc='center right', fontsize=fontsize)
 
     axs[0].grid(False)
     axs[0].spines['top'].set_visible(False)
@@ -99,7 +99,7 @@ def plot_race_view(states_played, states, label, result_directory, number):
     axs[1].set_xlabel('Stage', fontsize=fontsize)
     axs[1].set_ylabel('Velocity', fontsize=fontsize)
     axs[1].set_title('Player Velocities for Each Stage', fontsize=fontsize)
-    axs[1].legend(loc='center right', fontsize=fontsize-15)
+    axs[1].legend(loc='center right', fontsize=fontsize)
 
     axs[1].grid(False)
     axs[1].spines['top'].set_visible(False)
@@ -134,7 +134,7 @@ def plot_average_cost(average_cost, label, result_directory):
     ax.set_ylabel('Average Cost Per Game', fontsize=fontsize)
     # ax.set_title('Average Cost- ' + label)
 
-    ax.set_ylim(0, 10)
+    ax.set_ylim(0, 14)
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
 
@@ -182,13 +182,13 @@ def plot_pareto_front(average_cost, labels, result_directory,):
     # plt.title('Multi-Scenario Pareto Frontier')
     plt.xlabel('Average Rank Cost Per Game', fontsize=fontsize)
     plt.ylabel('Average Safety Cost Per Game', fontsize=fontsize)
-    plt.legend(by_label.values(), by_label.keys(), loc='lower right',
-               title="Scenario (Player 1-Player 2)", fontsize=fontsize-9, title_fontsize=fontsize-9)
+    plt.legend(by_label.values(), by_label.keys(), loc='lower left',
+               title="Scenario (Player 1-Player 2)", fontsize=15, title_fontsize=15)
 
     plt.yticks(fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
-    # plt.ylim(0, 10)
-    # plt.xlim(0, 10)
+    # plt.ylim(3, 9)
+    # plt.xlim(3, 9)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
