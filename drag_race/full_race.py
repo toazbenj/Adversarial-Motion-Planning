@@ -21,7 +21,7 @@ else:
     play_path = "offline_calcs/security_play.npz"
     plot_directory = "security_policies"
 
-stage_count = 1
+stage_count = 3
 # maintain speed, decelerate, accelerate, turn, tie, collide
 rank_penalty_lst = [0, 1, 2, 1, 5, 10]
 safety_penalty_lst = [0, 3, 3, 3, 5, 20]
@@ -31,7 +31,7 @@ init_state = np.array([[0, 0],
 
 # Play Parameters =====================================================================================================
 is_verbose = True
-race_count = 100000
+race_count = 100
 
 # Plot Parameters =====================================================================================================
 sample_races = 50
