@@ -59,56 +59,56 @@ def find_lowest_potential_points(potential_matrix):
     return [tuple(point) for point in lowest_points]
 
 
-def is_pareto_efficient(costs):
-    """
-    Find Pareto-efficient points.
-    :param costs: Array of (A_cost, B_cost) pairs.
-    :return: Boolean array indicating whether each point is Pareto-efficient.
-    """
-    is_efficient = np.ones(costs.shape[0], dtype=bool)
-    for i, cost in enumerate(costs):
-        is_efficient[i] = not np.any(np.all(costs <= cost, axis=1) & np.any(costs < cost, axis=1))
-    return is_efficient
+# def is_pareto_efficient(costs):
+#     """
+#     Find Pareto-efficient points.
+#     :param costs: Array of (A_cost, B_cost) pairs.
+#     :return: Boolean array indicating whether each point is Pareto-efficient.
+#     """
+#     is_efficient = np.ones(costs.shape[0], dtype=bool)
+#     for i, cost in enumerate(costs):
+#         is_efficient[i] = not np.any(np.all(costs <= cost, axis=1) & np.any(costs < cost, axis=1))
+#     return is_efficient
 
 
-def plot_pareto_frontier(A, B, potential_matrix, lowest_potential_points):
-    """
-    Plot the outcome pairs (A_cost, B_cost) and highlight the Pareto frontier and lowest potential points.
-    :param A: Payoff matrix A (as costs for player A).
-    :param B: Payoff matrix B (as costs for player B).
-    :param potential_matrix: The matrix of potential values.
-    :param lowest_potential_points: Indices of points with the lowest potential values.
-    """
-    # Get all possible pairs (A_cost, B_cost)
-    m, n = A.shape
-    outcomes = [(A[i, j], B[i, j]) for i in range(m) for j in range(n)]
-    outcomes = np.array(outcomes)
-
-    # Identify Pareto-efficient points
-    pareto_efficient = is_pareto_efficient(outcomes)
-
-    # Extract the lowest potential point outcomes
-    lowest_potential_outcomes = [(A[i, j], B[i, j]) for i, j in lowest_potential_points]
-
-    # Plot all outcomes
-    plt.scatter(outcomes[:, 0], outcomes[:, 1], label="All Outcomes", color="blue", alpha=0.7)
-
-    # Highlight Pareto-efficient outcomes
-    plt.scatter(outcomes[pareto_efficient][:, 0], outcomes[pareto_efficient][:, 1],
-                label="Pareto Frontier", color="red")
-
-    # Highlight outcomes corresponding to the lowest potential points
-    lowest_potential_outcomes = np.array(lowest_potential_outcomes)
-    if lowest_potential_outcomes.size > 0:
-        plt.scatter(lowest_potential_outcomes[:, 0], lowest_potential_outcomes[:, 1],
-                    label="Lowest Potential Points", color="green", marker="*", s=150)
-
-    # Labels and plot details
-    plt.xlabel("Player A Cost")
-    plt.ylabel("Player B Cost")
-    plt.title("Pareto Frontier and Lowest Potential Points in Cost Space")
-    plt.legend()
-    plt.show()
+# def plot_pareto_frontier(A, B, potential_matrix, lowest_potential_points):
+#     """
+#     Plot the outcome pairs (A_cost, B_cost) and highlight the Pareto frontier and lowest potential points.
+#     :param A: Payoff matrix A (as costs for player A).
+#     :param B: Payoff matrix B (as costs for player B).
+#     :param potential_matrix: The matrix of potential values.
+#     :param lowest_potential_points: Indices of points with the lowest potential values.
+#     """
+#     # Get all possible pairs (A_cost, B_cost)
+#     m, n = A.shape
+#     outcomes = [(A[i, j], B[i, j]) for i in range(m) for j in range(n)]
+#     outcomes = np.array(outcomes)
+#
+#     # Identify Pareto-efficient points
+#     pareto_efficient = is_pareto_efficient(outcomes)
+#
+#     # Extract the lowest potential point outcomes
+#     lowest_potential_outcomes = [(A[i, j], B[i, j]) for i, j in lowest_potential_points]
+#
+#     # Plot all outcomes
+#     plt.scatter(outcomes[:, 0], outcomes[:, 1], label="All Outcomes", color="blue", alpha=0.7)
+#
+#     # Highlight Pareto-efficient outcomes
+#     plt.scatter(outcomes[pareto_efficient][:, 0], outcomes[pareto_efficient][:, 1],
+#                 label="Pareto Frontier", color="red")
+#
+#     # Highlight outcomes corresponding to the lowest potential points
+#     lowest_potential_outcomes = np.array(lowest_potential_outcomes)
+#     if lowest_potential_outcomes.size > 0:
+#         plt.scatter(lowest_potential_outcomes[:, 0], lowest_potential_outcomes[:, 1],
+#                     label="Lowest Potential Points", color="green", marker="*", s=150)
+#
+#     # Labels and plot details
+#     plt.xlabel("Player A Cost")
+#     plt.ylabel("Player B Cost")
+#     plt.title("Pareto Frontier and Lowest Potential Points in Cost Space")
+#     plt.legend()
+#     plt.show()
 
 
 if __name__ == '__main__':
@@ -125,12 +125,12 @@ if __name__ == '__main__':
     # B = np.array([
     #     [2, 0],
     #     [30, 8]])
-    # A = np.array([
-    #     [1, 2],
-    #     [3, 4]])
-    # B = np.array([
-    #     [4, 3],
-    #     [2, 1]])
+    B = np.array([
+        [1, 2],
+        [3, 4]])
+    A = np.array([
+        [3, 0],
+        [4, 1]])
     # A = np.array([
     #     [0, 0, 0, 0],
     #     [2, 10, 2, 2],
@@ -165,9 +165,9 @@ if __name__ == '__main__':
     potential_matrix = potential_function(A, B)
     print("Potential Matrix:\n", potential_matrix)
 
-    # Find the points corresponding to the lowest values in the potential matrix
-    lowest_potential_points = find_lowest_potential_points(potential_matrix)
-    print("Lowest Potential Points (indices):", lowest_potential_points)
-
-    # Plot Pareto frontier in cost space and highlight lowest potential points
-    plot_pareto_frontier(A, B, potential_matrix, lowest_potential_points)
+    # # Find the points corresponding to the lowest values in the potential matrix
+    # lowest_potential_points = find_lowest_potential_points(potential_matrix)
+    # print("Lowest Potential Points (indices):", lowest_potential_points)
+    #
+    # # Plot Pareto frontier in cost space and highlight lowest potential points
+    # plot_pareto_frontier(A, B, potential_matrix, lowest_potential_points)

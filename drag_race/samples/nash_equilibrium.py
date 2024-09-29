@@ -178,10 +178,12 @@ if __name__ == "__main__":
     # # row_strategy, col_strategy, value_of_game = scipy_solve(payoff_matrix)
     # # show_results(row_strategy, col_strategy, value_of_game)
     #
-    payoff_matrix = np.array([[0, 1, 2, 3],
-                              [1, 0, 1, 2],
-                              [0, 1, 0, 1],
-                              [-1, 0, 1, 0]])
+    # payoff_matrix = np.array([[0, 1, 2, 3],
+    #                           [1, 0, 1, 2],
+    #                           [0, 1, 0, 1],
+    #                           [-1, 0, 1, 0]])
+    payoff_matrix = np.array([[1, 2],
+                              [3, 0],])
     row_strategy, col_strategy, value_of_game = itr_solve(payoff_matrix)
     show_results(row_strategy, col_strategy, value_of_game)
     #
