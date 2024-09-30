@@ -1,3 +1,8 @@
+"""
+Small case for 3 players, 2 element vector costs, not currently working
+"""
+
+
 import numpy as np
 from scipy.optimize import minimize
 
@@ -89,7 +94,7 @@ def cost_adjustment(player1_games, player2_games, player3_games):
                        {'type': 'ineq', 'fun': inequality_constraint}]
 
         # Minimize the objective function (norm of the global potential function)
-        result = minimize(objective, E_initial, constraints=constraints, method='SLSQP')
+        result = minimize(objective, E_initial, constraints=constraints, method='trust-constr')
 
         # Debugging output to check if minimization is exiting too early
         print("Optimization Result:")
