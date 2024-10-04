@@ -1,6 +1,24 @@
 import numpy as np
 from scipy.optimize import minimize
 
+def compute_column_norm(error_matrices):
+    """
+    Compute the first norm (1-norm) of each column for each error matrix.
+    :param error_matrices: list of 2D numpy arrays (error tensors for Player 1)
+    :return: list of 1D numpy arrays, each containing the column-wise 1-norms of the error matrix
+    """
+    max_column_norms_list = []
+
+    for error_matrix in error_matrices:
+        # Compute the column-wise 1-norm (Manhattan norm)
+        column_norms = np.linalg.norm(error_matrix, ord=1, axis=0)
+        # Get the maximum column norm
+        max_column_norm = np.max(column_norms)
+        max_column_norms_list.append(max_column_norm)
+
+    return max_column_norms_list
+
+
 def cost_adjustment(player1_games, player2_games):
     """
     Given lists of 2D cost tensors for Player 1 and Player 2, compute the error tensor such that it can be added to
@@ -70,7 +88,9 @@ def cost_adjustment(player1_games, player2_games):
                        {'type': 'ineq', 'fun': inequality_constraint}]
 
         # Minimize the objective function (norm of the global potential function)
-        result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', options={'maxiter': 1000})
+        # result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', options={'maxiter': 1000})
+        result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', hess=None,
+                          options={'maxiter': 1000})
 
         # Debugging output to check if minimization is exiting too early
         print("Optimization Result:")
@@ -131,71 +151,19 @@ def add_errors(player1_errors, player1_games):
 
 
 if __name__ == '__main__':
-    # 4,6,9 currently failing
-    A1 = np.array([[4, 5],
+    B1 = np.array([[4, 5],
                    [1, 3]])
-    B1 = np.array([[1, 2],
+    B2 = np.array([[1, 2],
                    [4, 5]])
 
-    # A2 = np.array([[1, 2],
-    #                [4, 5]])
-    # B2 = np.array([[1, 5],
-    #                [3, 7]])
-    #
-    # A3 = np.array([[3, 6, 1],
-    #               [8, -1, 5],
-    #               [10, -2, 10]])
-    #
-    # B3 = np.array([[-2, 5, -1],
-    #               [10, 1, 5],
-    #               [10, 2, 8]])
-
-    # A4 = np.array([
-    #     [2, 30],
-    #     [0, 8]])
-    # B4 = np.array([
-    #     [2, 0],
-    #     [30, 8]])
-
-    A4 = np.array([
-        [8, 30],
-        [0, 2]])
-    B4 = np.array([
-        [8, 0],
-        [30, 2]])
-
-    A5 = np.array([[4, 5],
-                  [1, 3]])
-    B5 = np.array([[1, 2],
-                  [4, 5]])
-    A6 = np.array([
-        [0, 0, 0, 0],
-        [2, 10, 2, 2],
-        [1, 1, 1, 1],
-        [3, 10, 3, 10]])
-    B6 = np.array([
-        [1, 3, 0, 2],
-        [1, 10, 0, 2],
-        [1, 3, 0, 2],
-        [1, 10, 0, 10]])
-
-    A7 = np.array([[-2, 1],
-                  [0, -1]])
-    B7 = np.array([[-3, 1],
-                  [2, -2]])
-
-    A8 = np.array([[2, 1, 3],
-                  [2, 4, 3],
-                  [5, 4, 6]])
-    B8 = np.array([[6, 5, 4],
-                  [3, 4, 2],
-                  [2, 1, 3]])
-
-    player1_games = [A1, A2, A3, A4, A5, A6, A7, A8]
-    player2_games = [B1, B2, B3, B4, B5, B6, B7, B8]
+    player1_games = [B1]
+    player2_games = [B2]
 
     # Compute error tensors for Player 1
     player1_errors = cost_adjustment(player1_games, player2_games)
+
+    # Compute column-wise norms of the error tensors
+    max_column_norms = compute_column_norm(player1_errors)
 
     # Add errors to Player 1's original costs
     player1_adjusted_costs = add_errors(player1_errors, player1_games)
@@ -206,15 +174,27 @@ if __name__ == '__main__':
         potential = global_potential_function(player1_adjusted_costs[i], player2_games[i])
         potential_functions.append(potential)
 
-    # Output the error tensors and potential functions
+    # Output the error tensors, potential functions, and maximum column-wise norms
     output = {
         "player1_errors": player1_errors,
-        "potential_functions": potential_functions
+        "potential_functions": potential_functions,
+        "max_column_norms": max_column_norms
     }
 
     # Formatting the output for better readability
-    for i, (p1_err, phi) in enumerate(zip(output['player1_errors'], output['potential_functions'])):
-        print(f"Subgame {i+1}:\n")
+    for i, (p1_err, phi, max_col_norm) in enumerate(
+            zip(output['player1_errors'], output['potential_functions'], output['max_column_norms'])):
+        print(f"Subgame {i + 1}:\n")
         print(f"Player 1 Error Tensor:\n{p1_err}\n")
         print(f"Global Potential Function:\n{phi}\n")
-        print("="*40, "\n")
+        print(f"Maximum Column-wise 1-Norm of Error Tensor: {max_col_norm}\n")
+        print("=" * 40, "\n")
+
+    # Formatting the output for better readability
+    for i, (p1_err, phi, max_col_norm) in enumerate(
+            zip(output['player1_errors'], output['potential_functions'], output['max_column_norms'])):
+        print(f"Subgame {i + 1}:\n")
+        print(f"Player 1 Error Tensor:\n{p1_err}\n")
+        print(f"Global Potential Function:\n{phi}\n")
+        print(f"Maximum Column-wise 1-Norm of Error Tensor: {max_col_norm}\n")
+        print("=" * 40, "\n")
