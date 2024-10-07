@@ -21,6 +21,16 @@ def cost_adjustment(player1_games, player2_games):
         # Initialize error tensor for Player 1
         Ea = np.zeros_like(A)
 
+        # Precompute the global potential function for the original matrices
+        phi_initial = global_potential_function(A, B)
+
+        # Check if the matrices already yield an exact potential function
+        if is_valid_exact_potential(A, B, phi_initial):
+            print(
+                f"Subgame {i + 1}: Matrices already yield an exact potential function with φ(0,0) = 0. No adjustment needed.")
+            player1_errors.append(Ea)  # Ea remains all zeros
+            continue  # Skip the optimization step
+
         # Define the objective function
         def objective(E):
             Ea = E.reshape(A.shape)
@@ -120,6 +130,45 @@ def global_potential_function(A, B):
     return phi
 
 
+def is_valid_exact_potential(A, B, phi):
+    """
+    Check if the computed potential function satisfies the exact potential condition and
+    has a global minimum at φ(0,0) = 0.
+    :param A: Player 1's cost matrix
+    :param B: Player 2's cost matrix
+    :param phi: Global potential function
+    :return: True if valid exact potential function with a global minimum at φ(0,0), False otherwise
+    """
+    m, n = A.shape
+
+    # Check condition for Player 1's strategies
+    for i in range(1, m):
+        for j in range(n):
+            delta_A = A[i, j] - A[i - 1, j]
+            delta_phi = phi[i, j] - phi[i - 1, j]
+            if not np.isclose(delta_A, delta_phi, atol=1e-6):
+                return False
+
+    # Check condition for Player 2's strategies
+    for i in range(m):
+        for j in range(1, n):
+            delta_B = B[i, j] - B[i, j - 1]
+            delta_phi = phi[i, j] - phi[i, j - 1]
+            if not np.isclose(delta_B, delta_phi, atol=1e-6):
+                return False
+
+    # Check if φ(0,0) = 0
+    if not np.isclose(phi[0, 0], 0, atol=1e-6):
+        return False
+
+    # Check if φ(0,0) is the global minimum
+    if np.any(phi[1:] <= phi[0, 0]):
+        return False
+
+    return True
+
+
+
 def add_errors(player1_errors, player1_games):
     """
     Add the computed error tensors to the original cost tensors for Player 1.
@@ -131,63 +180,55 @@ def add_errors(player1_errors, player1_games):
 
 
 if __name__ == '__main__':
-    # 4,6,9 currently failing
-    A1 = np.array([[4, 5],
-                   [1, 3]])
+    A1 = np.array([[3, 4],
+                   [1, 2]])
     B1 = np.array([[1, 2],
+                   [3, 4]])
+
+    A2 = np.array([[1, 2],
                    [4, 5]])
+    B2 = np.array([[1, 5],
+                   [3, 7]])
 
-    # A2 = np.array([[1, 2],
-    #                [4, 5]])
-    # B2 = np.array([[1, 5],
-    #                [3, 7]])
-    #
-    # A3 = np.array([[3, 6, 1],
-    #               [8, -1, 5],
-    #               [10, -2, 10]])
-    #
-    # B3 = np.array([[-2, 5, -1],
-    #               [10, 1, 5],
-    #               [10, 2, 8]])
-
-    # A4 = np.array([
-    #     [2, 30],
-    #     [0, 8]])
-    # B4 = np.array([
-    #     [2, 0],
-    #     [30, 8]])
+    A3 = np.array([[3, 6, 1],
+                  [8, -1, 5],
+                  [10, -2, 10]])
+    B3 = np.array([[-2, 5, -1],
+                  [10, 1, 5],
+                  [10, 2, 8]])
 
     A4 = np.array([
-        [8, 30],
-        [0, 2]])
-    B4 = np.array([
         [8, 0],
         [30, 2]])
+    B4 = np.array([
+        [8, 30],
+        [0, 2]])
 
     A5 = np.array([[4, 5],
                   [1, 3]])
     B5 = np.array([[1, 2],
                   [4, 5]])
+
     A6 = np.array([
         [0, 0, 0, 0],
         [2, 10, 2, 2],
         [1, 1, 1, 1],
         [3, 10, 3, 10]])
     B6 = np.array([
-        [1, 3, 0, 2],
+        [1, 3, 2, 2],
         [1, 10, 0, 2],
-        [1, 3, 0, 2],
+        [1, 3, 2, 2],
         [1, 10, 0, 10]])
 
     A7 = np.array([[-2, 1],
                   [0, -1]])
-    B7 = np.array([[-3, 1],
-                  [2, -2]])
+    B7 = np.array([[-3, 2],
+                  [1, -2]])
 
     A8 = np.array([[2, 1, 3],
                   [2, 4, 3],
                   [5, 4, 6]])
-    B8 = np.array([[6, 5, 4],
+    B8 = np.array([[4, 5, 6],
                   [3, 4, 2],
                   [2, 1, 3]])
 
