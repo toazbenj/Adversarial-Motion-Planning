@@ -6,11 +6,9 @@ build_race.py. It will load the saved_game.npz file and pair up the players for 
 game values of each run and save them in results.npz. After this you should run plot_race.py to visualize the data.
 """
 
-from graphics import plot_race_view, plot_pareto_front, plot_average_cost
-from utilities import *
+import numpy as np
 import random
-import os
-import glob
+from utils.upkeep_utils import array_find, read_npz_build, write_npz_play
 
 
 def play_game(policy1, policy2, dynamics, stage_count, init_state_index):

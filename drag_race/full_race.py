@@ -11,7 +11,7 @@ from play_race import play_race
 from plot_race import plot_race
 
 # Build Parameters ====================================================================================================
-is_mixed_equilibrium = False
+is_mixed_equilibrium = True
 if is_mixed_equilibrium:
     build_path = "offline_calcs/mixed_build.npz"
     play_path = "offline_calcs/mixed_play.npz"
@@ -21,7 +21,7 @@ else:
     play_path = "offline_calcs/security_play.npz"
     plot_directory = "security_policies"
 
-stage_count = 3
+stage_count = 1
 # maintain speed, decelerate, accelerate, turn, tie, collide
 rank_penalty_lst = [0, 1, 2, 1, 5, 10]
 safety_penalty_lst = [0, 3, 3, 3, 5, 20]
@@ -34,7 +34,7 @@ is_verbose = True
 race_count = 100
 
 # Plot Parameters =====================================================================================================
-sample_races = 50
+sample_races = 10
 
 # Calculations ========================================================================================================
 build_race(build_path, stage_count, is_mixed_equilibrium, rank_penalty_lst, safety_penalty_lst, init_state)

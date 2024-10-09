@@ -4,7 +4,7 @@ Generate Race Visualizations
 Run third after play_race.py. Clean out the plot directory and generate images for each race, graphs of costs.
 WARNING: Will wipe all existing plots!
 """
-from utilities import read_npz_play
+from drag_race.utils.upkeep_utils import read_npz_play
 from graphics import plot_race_view, plot_pareto_front, plot_average_cost
 import os
 import glob

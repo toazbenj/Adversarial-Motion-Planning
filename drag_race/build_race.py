@@ -10,8 +10,11 @@ Run this first, generate the saved_game.npz file with all game structure data an
 get results.
 """
 
-from utilities import *
-
+import numpy as np
+from utils.game_setup_utils import (generate_costs, generate_states, generate_dynamics,
+                                    generate_control_inputs, rank_cost, safety_cost)
+from utils.policy_utils import bimatrix_mixed_policy, generate_moderate_policies, mixed_policy_3d
+from utils.upkeep_utils import expand_mat, write_npz_build
 
 def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, state_lst):
     """
