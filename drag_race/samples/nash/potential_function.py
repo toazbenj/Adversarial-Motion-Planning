@@ -2,53 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-# def potnetial_function(A, B):
-#     """
-#     Computes the global potential function for two players given their cost matrices A (Player 1) and B (Player 2),
-#     and checks if the potential function satisfies the exact potential condition.
-#
-#     :param A: Player 1's cost matrix
-#     :param B: Player 2's cost matrix
-#     :return: Global potential function as a tensor, and a boolean indicating if it satisfies the exact potential condition.
-#     """
-#     assert A.shape == B.shape
-#     m, n = A.shape
-#
-#     # Initialize the global potential function tensor
-#     phi = np.zeros((m, n))
-#     phi[0, 0] = 0
-#
-#     # Flag to track if the exact potential condition is satisfied
-#     exact_potential = True
-#
-#     # Compute first row (Player 2's moves)
-#     for j in range(1, n):
-#         phi[0, j] = phi[0, j - 1] + B[0, j] - B[0, j - 1]
-#         # Check exact potential condition for Player 2
-#         if not np.isclose(B[0, j] - B[0, j - 1], phi[0, j] - phi[0, j - 1], atol=1e-6):
-#             exact_potential = False
-#
-#     # Compute first column (Player 1's moves)
-#     for i in range(1, m):
-#         phi[i, 0] = phi[i - 1, 0] + A[i, 0] - A[i - 1, 0]
-#         # Check exact potential condition for Player 1
-#         if not np.isclose(A[i, 0] - A[i - 1, 0], phi[i, 0] - phi[i - 1, 0], atol=1e-6):
-#             exact_potential = False
-#
-#     # Compute the rest of the grid (cross-effects between both players)
-#     for i in range(1, m):
-#         for j in range(1, n):
-#             phi[i, j] = phi[i - 1, j] + A[i, j] - A[i - 1, j]
-#             # Check exact potential condition for Player 1
-#             if not np.isclose(A[i, j] - A[i - 1, j], phi[i, j] - phi[i - 1, j], atol=1e-6):
-#                 exact_potential = False
-#
-#     return phi, exact_potential
-#
 def potential_function(A, B):
     """
     Computes the global potential function for two players given their cost matrices A (Player 1) and B (Player 2),
-    and checks if the potential function satisfies the exact potential condition across both players' strategies.
+    and checks if the potential function satisfies the exact potential condition across both players' strategies
+    for both immediate and non-immediate neighbors.
 
     :param A: Player 1's cost matrix
     :param B: Player 2's cost matrix
@@ -67,16 +25,18 @@ def potential_function(A, B):
     # Compute first row (Player 2's moves)
     for j in range(1, n):
         phi[0, j] = phi[0, j - 1] + B[0, j] - B[0, j - 1]
-        # Check exact potential condition for Player 2
-        if not np.isclose(B[0, j] - B[0, j - 1], phi[0, j] - phi[0, j - 1], atol=1e-6):
-            exact_potential = False
+        # Check exact potential condition for Player 2 (all possible ranges)
+        for k in range(1, j + 1):
+            if not np.isclose(B[0, j] - B[0, j - k], phi[0, j] - phi[0, j - k], atol=1e-6):
+                exact_potential = False
 
     # Compute first column (Player 1's moves)
     for i in range(1, m):
         phi[i, 0] = phi[i - 1, 0] + A[i, 0] - A[i - 1, 0]
-        # Check exact potential condition for Player 1
-        if not np.isclose(A[i, 0] - A[i - 1, 0], phi[i, 0] - phi[i - 1, 0], atol=1e-6):
-            exact_potential = False
+        # Check exact potential condition for Player 1 (all possible ranges)
+        for k in range(1, i + 1):
+            if not np.isclose(A[i, 0] - A[i - k, 0], phi[i, 0] - phi[i - k, 0], atol=1e-6):
+                exact_potential = False
 
     # Compute the rest of the grid (cross-effects between both players)
     for i in range(1, m):
@@ -85,15 +45,18 @@ def potential_function(A, B):
             phi[i, j] = (phi[i - 1, j] + A[i, j] - A[i - 1, j] +
                          phi[i, j - 1] + B[i, j] - B[i, j - 1]) / 2.0
 
-            # Check exact potential condition for Player 1
-            if not np.isclose(A[i, j] - A[i - 1, j], phi[i, j] - phi[i - 1, j], atol=1e-6):
-                exact_potential = False
+            # Check exact potential condition for Player 1 (all possible ranges)
+            for k in range(1, i + 1):
+                if not np.isclose(A[i, j] - A[i - k, j], phi[i, j] - phi[i - k, j], atol=1e-6):
+                    exact_potential = False
 
-            # Check exact potential condition for Player 2
-            if not np.isclose(B[i, j] - B[i, j - 1], phi[i, j] - phi[i, j - 1], atol=1e-6):
-                exact_potential = False
+            # Check exact potential condition for Player 2 (all possible ranges)
+            for k in range(1, j + 1):
+                if not np.isclose(B[i, j] - B[i, j - k], phi[i, j] - phi[i, j - k], atol=1e-6):
+                    exact_potential = False
 
     return phi, exact_potential
+
 
 def find_nash_equilibria(phi):
     m, n = phi.shape
@@ -199,10 +162,10 @@ if __name__ == '__main__':
     # B = np.array([
     #     [2, 0],
     #     [30, 8]])
-    # A = np.array([[4, 5],
-    #                [1, 3]])
-    # B = np.array([[1, 2],
-    #                [4, 5]])
+    A = np.array([[4, 5],
+                   [1, 3]])
+    B = np.array([[1, 2],
+                   [4, 5]])
     # A = np.array([[2.45, 3.95],
     #                [2.55, 4.05]])
     # B = np.array([[1, 2],
@@ -228,11 +191,11 @@ if __name__ == '__main__':
     # B = np.array([[6, 5, 4],
     #               [3, 4, 2],
     #               [2, 1, 3]])
-    A = np.array([[3, 1],
-                  [2, 0]])
-
-    B = np.array([[2, 5],
-                  [0, 1]])
+    # A = np.array([[3, 1],
+    #               [2, 0]])
+    #
+    # B = np.array([[2, 5],
+    #               [0, 1]])
     # Compute the potential matrix
     phi, is_exact = potential_function(A, B)
     print("Potential Function:")
