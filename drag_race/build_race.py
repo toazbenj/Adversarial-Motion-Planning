@@ -76,6 +76,36 @@ def generate_cost_to_go_security(stage_count, costs1, costs2, control_inputs, st
     return policy1, policy2
 
 
+def generate_cost_to_go_adjusted(stage_count, costs1, costs2, control_inputs, state_lst):
+    """
+    Calculates cost to go for each state at each stage (security policies)
+    :param stage_count: decision point count int
+    :param costs1: cost array of state x control input x control input
+    :param costs2: cost array of state x control input x control input
+    :param control_inputs: list of control input arrays
+    :param state_lst: list of all possible state arrays
+    :return: array of policies for each player of state x control input
+    """
+    # Initialize cost to go with zeros
+    V1 = np.zeros((stage_count + 2, len(costs1)))
+    V2 = np.zeros((stage_count + 2, len(costs1)))
+    policy1 = np.zeros((stage_count + 1, len(state_lst), len(control_inputs)))
+    policy2 = np.zeros((stage_count + 1, len(state_lst), len(control_inputs)))
+
+    # Iterate backwards from k to 1
+    for stage in range(stage_count, -1, -1):
+        combined_cost1 = expand_mat(V1[stage + 1], costs1) + costs1
+        combined_cost2 = expand_mat(V2[stage + 1], costs2) + costs2
+
+        # policy1[stage], _, mixed_value1 = mixed_policy_3d(combined_cost1, state_lst, stage_count)
+        # _, policy2[stage], mixed_value2 = mixed_policy_3d(combined_cost2, state_lst, stage_count, is_min_max=False)
+
+        policy1[stage], policy2[stage], value1, value2 = pure_nash_policies(combined_cost1, state_lst, stage_count)
+
+        V1[stage] = value1
+        V2[stage] = value2
+
+    return policy1, policy2
 def build_race(model_path, stage_count, is_mixed_equilibrium, rank_penalty_lst, safety_penalty_lst, init_state):
     """
     Populates all game variables for drag race

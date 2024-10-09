@@ -8,6 +8,7 @@ helper functions. Most assume game is bimatrix, where each player is a minimizer
 import numpy as np
 from scipy.optimize import linprog
 from drag_race.utils.upkeep_utils import clean_matrix, remap_values
+from drag_race.utils.cost_adjust_utils import cost_adjustment
 
 def mixed_policy_2d(payoff_matrix, iterations=5000, is_min_max=True):
     """
@@ -189,3 +190,38 @@ def generate_moderate_policies(aggressive_policy1, aggressive_policy2, conservat
     y = (aggressive_policy1 + conservative_policy1)/2
     z = (aggressive_policy2 + conservative_policy2)/2
     return y, z
+
+
+def pure_nash_policies(A, B):
+    """
+    Find all pure Nash equilibria for a bimatrix game where both players are minimizers.
+
+    Parameters:
+    A (2D np.array): Payoff matrix for Player 1
+    B (2D np.array): Payoff matrix for Player 2
+
+    Returns:
+    List of tuples: Each tuple represents a pure Nash equilibrium (Player 1's strategy, Player 2's strategy)
+    """
+    # Get the number of strategies for both players
+    m, n = A.shape
+
+    # Find the best response for Player 1 (minimizer) - minimize payoffs in each row
+    player1_min_responses = np.min(A, axis=1)
+
+    # Find the best response for Player 2 (minimizer) - minimize payoffs in each column
+    player2_min_responses = np.min(B, axis=0)
+
+    # List to store pure Nash equilibria
+    nash_equilibria = []
+
+    # Iterate over all strategy pairs (i, j)
+    for i in range(m):  # Player 1's strategies
+        for j in range(n):  # Player 2's strategies
+            # Check if both players are minimizing their payoffs
+            if A[i, j] == player1_min_responses[i] and B[i, j] == player2_min_responses[j]:
+                # If both conditions are satisfied, it's a Nash equilibrium
+                nash_equilibria.append((i, j))
+
+    return nash_equilibria
+
