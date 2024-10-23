@@ -13,8 +13,9 @@ get results.
 import numpy as np
 from utils.game_setup_utils import (generate_costs, generate_states, generate_dynamics,
                                     generate_control_inputs, rank_cost, safety_cost)
-from utils.policy_utils import bimatrix_mixed_policy, generate_moderate_policies, mixed_policy_3d
+from utils.policy_utils import bimatrix_mixed_policy, generate_moderate_policies, mixed_policy_3d, security_value, clean_matrix
 from utils.upkeep_utils import expand_mat, write_npz_build
+from utils.cost_adjust_utils import cost_adjustment, add_errors
 
 def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, state_lst):
     """
@@ -76,7 +77,7 @@ def generate_cost_to_go_security(stage_count, costs1, costs2, control_inputs, st
     return policy1, policy2
 
 
-def generate_cost_to_go_adjusted(stage_count, costs1, costs2, control_inputs, state_lst):
+def generate_cost_to_go_adjusted(stage_count, rank_costs1, rank_costs2, safety_costs1, safety_costs2, state_lst, control_inputs):
     """
     Calculates cost to go for each state at each stage (security policies)
     :param stage_count: decision point count int
@@ -86,32 +87,49 @@ def generate_cost_to_go_adjusted(stage_count, costs1, costs2, control_inputs, st
     :param state_lst: list of all possible state arrays
     :return: array of policies for each player of state x control input
     """
-    # Initialize cost to go with zeros
+    # adjust cost
+    player1_costs = [safety_costs1, rank_costs1]
+    player2_costs = [safety_costs2, rank_costs2]
+
+    # issue here, have to index through by state to reach 2D matrices
+    num_states = safety_costs1.shape[0]
+    player1_errors = [np.zeros(safety_costs1.shape),
+                      np.zeros(safety_costs1.shape)]
+
+    for i in range(len(player1_costs)):
+        for state in range(num_states):
+            state_error = cost_adjustment(clean_matrix(player1_costs[i][state]),
+                                           clean_matrix(player2_costs[i][state]))
+
+            # each error array in the list is indexed, state index in array is filled
+            # need to remap values from small cleaned matrix to large, new function?
+            player1_errors[i][state] = state_error
+
+    player1_adjusted_costs = add_errors(player1_errors, player1_costs)
+
+    # p1 players pure sec policy of adjusted rank costs, p2 plays pure sec policy of original safety costs
+    costs1 = player1_adjusted_costs[1]
+    costs2 = safety_costs2
+
+    # cost to go calculation
     V1 = np.zeros((stage_count + 2, len(costs1)))
     V2 = np.zeros((stage_count + 2, len(costs1)))
-    policy1 = np.zeros((stage_count + 1, len(state_lst), len(control_inputs)))
-    policy2 = np.zeros((stage_count + 1, len(state_lst), len(control_inputs)))
 
     # Iterate backwards from k to 1
     for stage in range(stage_count, -1, -1):
         combined_cost1 = expand_mat(V1[stage + 1], costs1) + costs1
         combined_cost2 = expand_mat(V2[stage + 1], costs2) + costs2
+        V1[stage], V2[stage] = security_value(combined_cost1, combined_cost2, state_lst, stage_count)
 
-        # policy1[stage], _, mixed_value1 = mixed_policy_3d(combined_cost1, state_lst, stage_count)
-        # _, policy2[stage], mixed_value2 = mixed_policy_3d(combined_cost2, state_lst, stage_count, is_min_max=False)
+    return V1, V2, player1_adjusted_costs
 
-        policy1[stage], policy2[stage], value1, value2 = pure_nash_policies(combined_cost1, state_lst, stage_count)
 
-        V1[stage] = value1
-        V2[stage] = value2
-
-    return policy1, policy2
-def build_race(model_path, stage_count, is_mixed_equilibrium, rank_penalty_lst, safety_penalty_lst, init_state):
+def build_race(model_path, stage_count, type, rank_penalty_lst, safety_penalty_lst, init_state):
     """
     Populates all game variables for drag race
     :param model_path: str path to save game variables
     :param stage_count: int number of decision epochs
-    :param is_mixed_equilibrium: bool whether to use mixed equilibrium or security policies
+    :param type: string of game policy type
     :param rank_penalty_lst: list of floats, action costs: maintain speed, decelerate, accelerate, turn, tie, collide
     :param safety_penalty_lst: list of floats, action costs: maintain speed, decelerate, accelerate, turn, tie, collide
     :param init_state: array of game state, player x property
@@ -124,30 +142,46 @@ def build_race(model_path, stage_count, is_mixed_equilibrium, rank_penalty_lst, 
 
     dynamics = generate_dynamics(states, control_inputs)
 
-    if is_mixed_equilibrium:
-        aggressive_policy1, aggressive_policy2 = generate_cost_to_go_mixed(stage_count, rank_cost1, rank_cost2,
-                                                                           control_inputs, states)
-        conservative_policy1, conservative_policy2 = generate_cost_to_go_mixed(stage_count, safety_cost1, safety_cost2,
+    match type:
+        case 'mixed':
+            aggressive_policy1, aggressive_policy2 = generate_cost_to_go_mixed(stage_count, rank_cost1, rank_cost2,
                                                                                control_inputs, states)
+            conservative_policy1, conservative_policy2 = generate_cost_to_go_mixed(stage_count, safety_cost1, safety_cost2,
+                                                                                   control_inputs, states)
+
+        case 'security':
+            aggressive_policy1, aggressive_policy2 = generate_cost_to_go_security(stage_count, rank_cost1, rank_cost2,
+                                                                                  control_inputs, states)
+            conservative_policy1, conservative_policy2 = generate_cost_to_go_security(stage_count, safety_cost1,
+                                                                                      safety_cost2, control_inputs, states)
+        case 'adjusted':
+            ctg1, ctg2, player1_adjusted_costs = generate_cost_to_go_adjusted(stage_count, rank_cost1, rank_cost2,
+                                                                               safety_cost1, safety_cost2, control_inputs, states)
+        case _:
+            print("Unrecognized type")
+
+    if type != 'adjusted':
+        moderate_policy1, moderate_policy2 = generate_moderate_policies(aggressive_policy1, aggressive_policy2,
+                                                                        conservative_policy1, conservative_policy2)
+
+        write_npz_build(model_path, (stage_count, rank_penalty_lst, safety_penalty_lst, init_state, states,
+                        control_inputs, rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics,
+                        aggressive_policy1, aggressive_policy2, conservative_policy1, conservative_policy2,
+                        moderate_policy1, moderate_policy2))
+
     else:
-        aggressive_policy1, aggressive_policy2 = generate_cost_to_go_security(stage_count, rank_cost1, rank_cost2,
-                                                                              control_inputs, states)
-        conservative_policy1, conservative_policy2 = generate_cost_to_go_security(stage_count, safety_cost1,
-                                                                                  safety_cost2, control_inputs, states)
-
-    moderate_policy1, moderate_policy2 = generate_moderate_policies(aggressive_policy1, aggressive_policy2,
-                                                                    conservative_policy1, conservative_policy2)
-
-    write_npz_build(model_path, (stage_count, rank_penalty_lst, safety_penalty_lst, init_state, states,
-                    control_inputs, rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics,
-                    aggressive_policy1, aggressive_policy2, conservative_policy1, conservative_policy2,
-                    moderate_policy1, moderate_policy2))
+        write_npz_build(model_path, (stage_count, rank_penalty_lst, safety_penalty_lst, init_state, states,
+                                     control_inputs, rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics,
+                                     ctg1, ctg2, player1_adjusted_costs))
 
 
 if __name__ == '__main__':
-    model_path = "offline_calcs/security_build.npz"
+    type = 'adjusted'
+    # type = 'mixed'
+    # type = 'security'
+
+    model_path = "offline_calcs/"+type+"_build.npz"
     stage_count = 1
-    is_mixed_equilibrium = False
     # maintain speed, decelerate, accelerate, turn, tie, collide
     rank_penalty_lst = [0, 1, 2, 1, 5, 10]
     safety_penalty_lst = [0, 1.5, 1.5, 1.5, 2.5, 10]
@@ -155,4 +189,4 @@ if __name__ == '__main__':
                            [0, 1],
                            [0, 0]])
 
-    build_race(model_path, stage_count, is_mixed_equilibrium, rank_penalty_lst, safety_penalty_lst, init_state)
+    build_race(model_path, stage_count, type, rank_penalty_lst, safety_penalty_lst, init_state)

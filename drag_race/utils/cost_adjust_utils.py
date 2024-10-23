@@ -26,7 +26,7 @@ def compute_column_norm(error_matrices):
     return max_column_norms_list
 
 
-def cost_adjustment(player1_games, player2_games):
+def cost_adjustment(A, B):
     """
     Given lists of 2D cost tensors for Player 1 and Player 2, compute the error tensor such that it can be added to
     Player 1's cost tensor and produce an exact potential function for both players.
@@ -37,81 +37,73 @@ def cost_adjustment(player1_games, player2_games):
     :return: list of error tensors for Player 1
     """
 
-    player1_errors = []
+    # Initialize error tensor for Player 1
+    Ea = np.zeros_like(A)
 
-    for i in range(len(player1_games)):
-        A = player1_games[i]
-        B = player2_games[i]
+    # Define the objective function
+    def objective(E):
+        Ea = E.reshape(A.shape)
 
-        # Initialize error tensor for Player 1
-        Ea = np.zeros_like(A)
+        # Adjusted cost tensors
+        A_prime = A + Ea
 
-        # Define the objective function
-        def objective(E):
-            Ea = E.reshape(A.shape)
+        # Compute the global potential function
+        phi = global_potential_function(A_prime, B)
 
-            # Adjusted cost tensors
-            A_prime = A + Ea
+        # Regularization term: add small norm of the error tensor to avoid ill-conditioning
+        regularization_term = 1e-6 * np.linalg.norm(Ea)
 
-            # Compute the global potential function
-            phi = global_potential_function(A_prime, B)
+        # Objective: norm of the potential function + regularization
+        return np.linalg.norm(phi) + regularization_term
 
-            # Regularization term: add small norm of the error tensor to avoid ill-conditioning
-            regularization_term = 1e-6 * np.linalg.norm(Ea)
+    def inequality_constraint(E):
+        Ea = E.reshape(A.shape)
 
-            # Objective: norm of the potential function + regularization
-            return np.linalg.norm(phi) + regularization_term
+        # Adjusted cost tensors
+        A_prime = A + Ea
 
-        def inequality_constraint(E):
-            Ea = E.reshape(A.shape)
+        # Compute the global potential function
+        phi = global_potential_function(A_prime, B)
 
-            # Adjusted cost tensors
-            A_prime = A + Ea
+        # Ensure all phi values (except phi[0, 0]) are greater than a small positive epsilon
+        epsilon = 1e-6
+        return phi.flatten()[1:] - epsilon  # All values > epsilon instead of strictly > 0
 
-            # Compute the global potential function
-            phi = global_potential_function(A_prime, B)
+    def constraint_phi_00(E):
+        Ea = E.reshape(A.shape)
 
-            # Ensure all phi values (except phi[0, 0]) are greater than a small positive epsilon
-            epsilon = 1e-6
-            return phi.flatten()[1:] - epsilon  # All values > epsilon instead of strictly > 0
+        # Adjusted cost tensors
+        A_prime = A + Ea
 
-        def constraint_phi_00(E):
-            Ea = E.reshape(A.shape)
+        # Compute the global potential function
+        phi = global_potential_function(A_prime, B)
 
-            # Adjusted cost tensors
-            A_prime = A + Ea
+        # Enforce phi[0, 0] = 0
+        return phi[0, 0]
 
-            # Compute the global potential function
-            phi = global_potential_function(A_prime, B)
+    # Flatten the initial error tensor
+    E_initial = Ea.flatten()
 
-            # Enforce phi[0, 0] = 0
-            return phi[0, 0]
+    # Set up the constraints
+    constraints = [{'type': 'eq', 'fun': constraint_phi_00},
+                   {'type': 'ineq', 'fun': inequality_constraint}]
 
-        # Flatten the initial error tensor
-        E_initial = Ea.flatten()
+    # Minimize the objective function (norm of the global potential function)
+    # result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', options={'maxiter': 1000})
+    result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', hess=None,
+                      options={'maxiter': 1000})
 
-        # Set up the constraints
-        constraints = [{'type': 'eq', 'fun': constraint_phi_00},
-                       {'type': 'ineq', 'fun': inequality_constraint}]
+    # Debugging output to check if minimization is exiting too early
+    print("Optimization Result:")
+    print("Status:", result.status)  # 0 indicates successful optimization
+    print("Message:", result.message)  # Check if there's any issue with optimization
+    print("Number of Iterations:", result.nit)  # Ensure enough iterations are being performed
+    print("Final Objective Value:", result.fun)  # Check the final value of the objective function
 
-        # Minimize the objective function (norm of the global potential function)
-        # result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', options={'maxiter': 1000})
-        result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', hess=None,
-                          options={'maxiter': 1000})
+    # Extract the optimized error tensor for Player 1
+    Ea_opt = result.x.reshape(A.shape)
 
-        # Debugging output to check if minimization is exiting too early
-        print("Optimization Result:")
-        print("Status:", result.status)  # 0 indicates successful optimization
-        print("Message:", result.message)  # Check if there's any issue with optimization
-        print("Number of Iterations:", result.nit)  # Ensure enough iterations are being performed
-        print("Final Objective Value:", result.fun)  # Check the final value of the objective function
-
-        # Extract the optimized error tensor for Player 1
-        Ea_opt = result.x.reshape(A.shape)
-
-        player1_errors.append(Ea_opt)
-
-    return player1_errors
+    return Ea_opt
 
 
 def global_potential_function(A, B):

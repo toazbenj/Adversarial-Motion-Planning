@@ -225,3 +225,29 @@ def pure_nash_policies(A, B):
 
     return nash_equilibria
 
+
+def security_value(total_cost1, total_cost2, state_lst, stage_count):
+    """
+    Find pure security policy game value for every state (approximate mixed nash equilibrium)
+    :param total_cost1: 3D cost array of state x control input x control input
+    :param total_cost2: 3D cost array of state x control input x control input
+    :param state_lst: list of state arrays
+    :param stage_count: int number of stages to play
+    :return: cost to go array of state x 1
+    """
+
+    num_states = total_cost1.shape[0]
+    ctg1 = np.zeros(num_states)
+    ctg2 = np.zeros(num_states)
+
+    for state in range(num_states):
+        # if state is an ending state, no decisions made
+        if check_end_state(state, state_lst, stage_count):
+            pass
+        else:
+            cost1 = clean_matrix(total_cost1[state])
+            cost2 = clean_matrix(total_cost2[state])
+            ctg1[state] = np.min(np.max(cost1, axis=2), axis=1)
+            ctg2[state] = np.min(np.max(cost2, axis=1), axis=1)
+
+    return ctg1, ctg2
