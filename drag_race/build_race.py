@@ -14,7 +14,7 @@ import numpy as np
 from utils.game_setup_utils import (generate_costs, generate_states, generate_dynamics,
                                     generate_control_inputs, rank_cost, safety_cost)
 from utils.policy_utils import bimatrix_mixed_policy, generate_moderate_policies, mixed_policy_3d, security_value, clean_matrix
-from utils.upkeep_utils import expand_mat, write_npz_build
+from utils.upkeep_utils import expand_mat, write_npz_build, remap_matrix
 from utils.cost_adjust_utils import cost_adjustment, add_errors
 
 def generate_cost_to_go_mixed(stage_count, costs1, costs2, control_inputs, state_lst):
@@ -98,12 +98,13 @@ def generate_cost_to_go_adjusted(stage_count, rank_costs1, rank_costs2, safety_c
 
     for i in range(len(player1_costs)):
         for state in range(num_states):
-            state_error = cost_adjustment(clean_matrix(player1_costs[i][state]),
-                                           clean_matrix(player2_costs[i][state]))
+            state_cost1 = player1_costs[i][state]
+            state_cost2 = player2_costs[i][state]
+            state_error = cost_adjustment(clean_matrix(state_cost1), clean_matrix(state_cost2))
 
             # each error array in the list is indexed, state index in array is filled
             # need to remap values from small cleaned matrix to large, new function?
-            player1_errors[i][state] = state_error
+            player1_errors[i][state] = remap_matrix(state_cost1, state_error)
 
     player1_adjusted_costs = add_errors(player1_errors, player1_costs)
 
