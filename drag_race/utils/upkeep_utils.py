@@ -87,29 +87,29 @@ def read_npz_build(filename):
     :param filename: name of data file str
     :return: tuple of offline calculated game variables
     """
-    data = np.load(filename, allow_pickle=True)
+    with np.load(filename, allow_pickle=True) as data:
 
-    stage_count = data['stage_count'].item()
-    rank_penalty_lst = data['rank_penalty_lst'].tolist()
-    safety_penalty_lst = data['safety_penalty_lst'].tolist()
+        stage_count = data['stage_count'].item()
+        rank_penalty_lst = data['rank_penalty_lst'].tolist()
+        safety_penalty_lst = data['safety_penalty_lst'].tolist()
 
-    init_state = data['init_state']
-    states = data['states']
-    control_inputs = data['control_inputs']
+        init_state = data['init_state']
+        states = data['states']
+        control_inputs = data['control_inputs']
 
-    rank_cost1 = data['rank_cost1']
-    rank_cost2 = data['rank_cost2']
-    safety_cost1 = data['safety_cost1']
-    safety_cost2 = data['safety_cost2']
+        rank_cost1 = data['rank_cost1']
+        rank_cost2 = data['rank_cost2']
+        safety_cost1 = data['safety_cost1']
+        safety_cost2 = data['safety_cost2']
 
-    dynamics = data['dynamics']
+        dynamics = data['dynamics']
 
-    aggressive_policy1 = data['aggressive_policy1']
-    aggressive_policy2 = data['aggressive_policy2']
-    conservative_policy1 = data['conservative_policy1']
-    conservative_policy2 = data['conservative_policy2']
-    moderate_policy1 = data['moderate_policy1']
-    moderate_policy2 = data['moderate_policy2']
+        aggressive_policy1 = data['aggressive_policy1']
+        aggressive_policy2 = data['aggressive_policy2']
+        conservative_policy1 = data['conservative_policy1']
+        conservative_policy2 = data['conservative_policy2']
+        moderate_policy1 = data['moderate_policy1']
+        moderate_policy2 = data['moderate_policy2']
 
     return stage_count, rank_penalty_lst, safety_penalty_lst, init_state, states, control_inputs, \
         rank_cost1, rank_cost2, safety_cost1, safety_cost2, dynamics, \
@@ -134,11 +134,11 @@ def read_npz_play(filename):
     :param filename: name of data file str
     :return: tuple of offline calculated game variables
     """
-    data = np.load(filename, allow_pickle=True)
-    average_game_values = data["average_game_values"]
-    states_played = data["states_played"]
-    states = data['states']
-    pair_labels = data["pair_labels"]
+    with np.load(filename, allow_pickle=True) as data:
+        average_game_values = data["average_game_values"]
+        states_played = data["states_played"]
+        states = data['states']
+        pair_labels = data["pair_labels"]
 
     return average_game_values, states_played, states, pair_labels
 

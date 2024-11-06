@@ -135,11 +135,14 @@ def play_race(build_path, play_path, is_verbose, race_count):
 
 
 if __name__ == '__main__':
-    # build_path = "offline_calcs/security_build.npz"
-    # play_path = "offline_calcs/security_play.npz"
-    build_path = "offline_calcs/mixed_build.npz"
-    play_path = "offline_calcs/mixed_play.npz"
-    is_verbose = False
-    race_count = 100000
+    type = 'adjusted'
+    # type = 'mixed'
+    # type = 'security'
+
+    build_path = "offline_calcs/" + type + "_build.npz"
+    play_path = "offline_calcs/" + type + "_play.npz"
+
+    is_verbose = True
+    race_count = 1
 
     play_race(build_path, play_path, is_verbose, race_count)

@@ -5,7 +5,7 @@ Run third after play_race.py. Clean out the plot directory and generate images f
 WARNING: Will wipe all existing plots!
 """
 from drag_race.utils.upkeep_utils import read_npz_play
-from graphics import plot_race_view, plot_pareto_front, plot_average_cost
+from drag_race.utils.graphic_utils import plot_race_view, plot_pareto_front, plot_average_cost
 import os
 import glob
 
@@ -35,10 +35,13 @@ def plot_race(play_path, plot_directory, sample_races):
     plot_pareto_front(average_game_values, pair_labels, plot_directory)
 
 if __name__ == '__main__':
-    play_path = "offline_calcs/security_play.npz"
-    plot_directory = "security_policies"
-    # result_filename = "offline_calcs/mixed_play.npz"
-    # plot_directory = "mixed_equilibrium"
-    sample_races = 0
+    type = 'adjusted'
+    # type = 'mixed'
+    # type = 'security'
+
+    build_path = "offline_calcs/" + type + "_build.npz"
+    play_path = "offline_calcs/" + type + "_play.npz"
+    plot_directory = "adjusted_costs"
+    sample_races = 1
 
     plot_race(play_path, plot_directory, sample_races)

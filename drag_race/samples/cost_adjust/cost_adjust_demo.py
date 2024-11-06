@@ -190,11 +190,3 @@ if __name__ == '__main__':
         print(f"Maximum Column-wise 1-Norm of Error Tensor: {max_col_norm}\n")
         print("=" * 40, "\n")
 
-    # Formatting the output for better readability
-    for i, (p1_err, phi, max_col_norm) in enumerate(
-            zip(output['player1_errors'], output['potential_functions'], output['max_column_norms'])):
-        print(f"Subgame {i + 1}:\n")
-        print(f"Player 1 Error Tensor:\n{p1_err}\n")
-        print(f"Global Potential Function:\n{phi}\n")
-        print(f"Maximum Column-wise 1-Norm of Error Tensor: {max_col_norm}\n")
-        print("=" * 40, "\n")

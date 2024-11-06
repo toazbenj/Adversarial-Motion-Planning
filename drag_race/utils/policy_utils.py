@@ -247,7 +247,31 @@ def security_value(total_cost1, total_cost2, state_lst, stage_count):
         else:
             cost1 = clean_matrix(total_cost1[state])
             cost2 = clean_matrix(total_cost2[state])
-            ctg1[state] = np.min(np.max(cost1, axis=2), axis=1)
-            ctg2[state] = np.min(np.max(cost2, axis=1), axis=1)
+            # verify axes are correct
+            ctg1[state] = np.min(np.max(cost1, axis=1), axis=0)
+            ctg2[state] = np.min(np.max(cost2, axis=0), axis=0)
 
     return ctg1, ctg2
+
+def security_policy(cost1):
+    """
+    Find pure security policies
+    :param total_cost1: 3D cost array of state x control input x control input
+    :param total_cost2: 3D cost array of state x control input x control input
+    :param state_lst: list of state arrays
+    :param stage_count: int number of stages to play
+    :return: cost to go array of state x 1
+    """
+
+    cost1 = clean_matrix(cost1)
+    policy1 = np.argmin(np.max(cost1, axis=1), axis=0)
+    policy2 = np.argmax(cost1, axis=1)
+    return policy1, policy2
+
+def pure_policy_mapping(actions, state_lst, control_inputs, stage_count):
+    policy = np.zeros((stage_count + 1, len(state_lst), len(control_inputs)))
+    for k in range(stage_count + 1):
+        round_policy = np.zeros(len(control_inputs))
+        round_policy[actions[k]] = 1
+        policy[k][:] = round_policy
+    return policy

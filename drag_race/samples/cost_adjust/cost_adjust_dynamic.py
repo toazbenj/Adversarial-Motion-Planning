@@ -1,49 +1,58 @@
 import numpy as np
 from scipy.optimize import minimize
 
-import numpy as np
-from scipy.optimize import minimize
 
 def cost_adjustment(player1_games, player2_games):
     player1_errors = []
-
+    global_min_positions = []
+    # Adjust each game so that the global_min_position in all potentials is zero
     for i in range(len(player1_games)):
+
         A = player1_games[i]
         B = player2_games[i]
-
-        # Initialize error tensor for Player 1
         Ea = np.zeros_like(A)
 
-        # Precompute the global potential function for the original matrices
-        phi_initial = global_potential_function(A, B)
+        # global min is pure security policy entry of highest priority game
+        sec_policy1 = np.argmin(np.max(A, axis=1), axis=0)
+        sec_policy2 = np.argmax(np.min(A, axis=0), axis=0)
+        global_min_position = (sec_policy1, sec_policy2)
+        global_min_positions.append(global_min_position)
 
-        # Check if the matrices already yield an exact potential function
-        if is_valid_exact_potential(A, B, phi_initial):
+        phi_initial = global_potential_function(A, B, global_min_position)
+
+        if is_valid_exact_potential(A, B, phi_initial, global_min_position):
             print(
-                f"Subgame {i + 1}: Matrices already yield an exact potential function with φ(0,0) = 0. No adjustment needed.")
+                f"Subgame {i + 1}: Matrices already yield an exact potential function with correct minima. No adjustment needed.")
             player1_errors.append(Ea)  # Ea remains all zeros
             continue  # Skip the optimization step
 
-        # Define the objective function to minimize the norm of the potential function
         def objective(E):
             Ea = E.reshape(A.shape)
+            regularization_term = np.linalg.norm(Ea)
+            return regularization_term
+
+        def constraint_global_min_zero(E):
+            Ea = E.reshape(A.shape)
             A_prime = A + Ea
-            phi = global_potential_function(A_prime, B)
-            regularization_term = 1e-6 * np.linalg.norm(Ea)
-            return np.linalg.norm(phi) + regularization_term
+            phi = global_potential_function(A_prime, B, global_min_position)
+            return phi[global_min_position]**2
 
         def inequality_constraint(E):
-            Ea = E.reshape(A.shape)
-            A_prime = A + Ea
-            phi = global_potential_function(A_prime, B)
-            epsilon = 1e-6
-            return phi.flatten()[1:] - epsilon  # Ensure all phi values (except phi[0, 0]) > epsilon
 
-        def constraint_phi_00(E):
             Ea = E.reshape(A.shape)
             A_prime = A + Ea
-            phi = global_potential_function(A_prime, B)
-            return phi[0, 0]  # Enforce φ[0, 0] = 0
+            phi = global_potential_function(A_prime, B, global_min_position)
+
+            flat_phi = phi.flatten()
+            shape = phi.shape
+            pos = global_min_position[0] * shape[1] + global_min_position[1]
+            flat_phi = np.delete(flat_phi, pos)
+
+            epsilon = 1e-6
+            constraint_values = flat_phi - epsilon
+
+            print("Inequality Constraint Values (should be >0):", constraint_values)
+            return constraint_values
 
         def constraint_exact_potential(E):
             """
@@ -51,7 +60,7 @@ def cost_adjustment(player1_games, player2_games):
             """
             Ea = E.reshape(A.shape)
             A_prime = A + Ea
-            phi = global_potential_function(A_prime, B)
+            phi = global_potential_function(A_prime, B, global_min_position)
             m, n = A.shape
             potential_diffs = []
 
@@ -69,28 +78,24 @@ def cost_adjustment(player1_games, player2_games):
                     delta_phi = phi[i, j] - phi[i, j - 1]
                     potential_diffs.append(delta_phi - delta_B)
 
-            return np.array(potential_diffs)
+            epsilon = 1e-6
+            return np.array(potential_diffs)**2-epsilon
 
-        # Flatten the initial error tensor
         E_initial = Ea.flatten()
-
-        # Set up the constraints
-        constraints = [{'type': 'eq', 'fun': constraint_phi_00},
+        constraints = [{'type': 'eq', 'fun': constraint_global_min_zero},
                        {'type': 'ineq', 'fun': inequality_constraint},
                        {'type': 'eq', 'fun': constraint_exact_potential}]
 
-        # Minimize the objective function
-        result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', options={'maxiter': 1000})
+        result = minimize(objective, E_initial, constraints=constraints, method='trust-constr',
+                          options={'maxiter': 1000})
 
-        # Extract the optimized error tensor for Player 1
         Ea_opt = result.x.reshape(A.shape)
         player1_errors.append(Ea_opt)
 
-    return player1_errors
+    return player1_errors, global_min_positions
 
-# Rest of your helper functions remain unchanged
 
-def global_potential_function(A, B):
+def global_potential_function(A, B, global_min_position=(0,0)):
     """
     Computes a global potential function for two players given their cost matrices A (Player 1) and B (Player 2).
     :param A: Player 1's cost tensor
@@ -102,9 +107,6 @@ def global_potential_function(A, B):
 
     # Initialize the global potential function tensor
     phi = np.zeros((m, n))
-
-    # Initialize with base value (can be arbitrary, here it's set to 0)
-    phi[0, 0] = 0
 
     # First iterate over the first axis (A-dimension)
     for i in range(1, m):
@@ -120,10 +122,14 @@ def global_potential_function(A, B):
             phi[i, j] = (phi[i - 1, j] + A[i, j] - A[i - 1, j] +
                          phi[i, j - 1] + B[i, j] - B[i, j - 1]) / 2.0
 
+    # make global min =0
+    correction_factor = -phi[global_min_position]
+    correction_matrix = np.full(phi.shape, correction_factor)
+    phi += correction_matrix
     return phi
 
 
-def is_valid_exact_potential(A, B, phi):
+def is_valid_exact_potential(A, B, phi, global_min_pos=None):
     """
     Check if the computed potential function satisfies the exact potential condition and
     has a global minimum at φ(0,0) = 0.
@@ -150,13 +156,17 @@ def is_valid_exact_potential(A, B, phi):
             if not np.isclose(delta_B, delta_phi, atol=1e-6):
                 return False
 
-    # Check if φ(0,0) = 0
-    if not np.isclose(phi[0, 0], 0, atol=1e-6):
-        return False
+    if global_min_pos:
 
-    # Check if φ(0,0) is the global minimum
-    if np.any(phi[1:] <= phi[0, 0]):
-        return False
+        # Check if global min = 0
+        if not np.isclose(phi[global_min_pos], 0, atol=1e-6):
+            return False
+
+        # Check if min pos is the global minimum
+        pos = global_min_pos[0] * phi.shape[1] + global_min_pos[1]
+        if (np.any(phi.flatten()[:pos] <= phi.flatten()[pos]) or
+                np.any(phi.flatten()[pos+1:] <= phi.flatten()[pos])):
+            return False
 
     return True
 
@@ -167,7 +177,6 @@ def add_errors(player1_errors, player1_games):
     Player 2's costs remain unchanged.
     """
     player1_adjusted = [player1_games[i] + player1_errors[i] for i in range(len(player1_games))]
-
     return player1_adjusted
 
 
@@ -242,11 +251,13 @@ if __name__ == '__main__':
                   [3, 4, 2],
                   [2, 1, 3]])
 
-    player1_games = [A1, A2, A3, A4, A5, A6, A7, A8]
-    player2_games = [B1, B2, B3, B4, B5, B6, B7, B8]
+    # player1_games = [A1, A2, A3, A4, A5, A6, A7, A8]
+    # player2_games = [B1, B2, B3, B4, B5, B6, B7, B8]
 
+    player1_games = [A1, A2, A3, A4, A5, A7, A8]
+    player2_games = [B1, B2, B3, B4, B5, B7, B8]
     # Compute error tensors for Player 1
-    player1_errors = cost_adjustment(player1_games, player2_games)
+    player1_errors, global_min_positions = cost_adjustment(player1_games, player2_games)
 
     # Compute column-wise norms of the error tensors
     max_column_norms = compute_column_norm(player1_errors)
@@ -257,7 +268,7 @@ if __name__ == '__main__':
     # Compute global potential functions based on adjusted costs
     potential_functions = []
     for i in range(len(player1_adjusted_costs)):
-        potential = global_potential_function(player1_adjusted_costs[i], player2_games[i])
+        potential = global_potential_function(player1_adjusted_costs[i], player2_games[i], global_min_positions[i])
         potential_functions.append(potential)
 
     # Output the error tensors, potential functions, and maximum column-wise norms
@@ -271,12 +282,19 @@ if __name__ == '__main__':
     for i, (p1_err, phi, max_col_norm) in enumerate(
             zip(output['player1_errors'], output['potential_functions'], output['max_column_norms'])):
         print(f"Subgame {i + 1}:\n")
+        print(f"Valid exact Potential: {is_valid_exact_potential(player1_adjusted_costs[i],
+                                                                 player2_games[i],
+                                                                 phi)}")
+        global_min_pos = global_min_positions[i]
+        pos = global_min_pos[0] * phi.shape[1] + global_min_pos[1]
+        is_min = ~(np.any(phi.flatten()[:pos] <= phi.flatten()[pos]) or
+                np.any(phi.flatten()[pos + 1:] <= phi.flatten()[pos]))
+        print("Global min enforced: ", (phi[global_min_pos] == 0 and is_min), "\n")
+
         print(f"Player 1 Error Tensor:\n{p1_err}\n")
         print(f"Global Potential Function:\n{phi}\n")
-        print(f"Maximum Column-wise 1-Norm of Error Tensor: {max_col_norm}\n")
+        print(f"Maximum Column-wise 1-Norm of Error Tensor: {max_col_norm}")
+        print("Global min position: ", global_min_positions[i])
         print("=" * 40, "\n")
 
-    for g in range(len(player1_games)):
-        print(is_valid_exact_potential(player1_adjusted_costs[g],
-                                       player2_games[g],
-                                       potential_functions[g]))
+print('end')

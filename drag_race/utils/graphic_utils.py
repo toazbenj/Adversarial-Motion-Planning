@@ -228,5 +228,5 @@ if __name__ == '__main__':
     pair_labels = ["Aggressive-Aggressive", "Conservative-Conservative",
                    "Moderate-Moderate", "Moderate-Conservative",
                    "Moderate-Aggressive", "Conservative-Aggressive"]
-    data = np.load("offline_calcs/results.npz", allow_pickle=True)
+    data = np.load("../offline_calcs/results.npz", allow_pickle=True)
     plot_pareto_front(data['values'], pair_labels)

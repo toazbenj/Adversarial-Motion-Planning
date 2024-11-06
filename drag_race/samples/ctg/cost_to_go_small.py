@@ -7,7 +7,7 @@ Scenario is only for 2 players
 """
 
 import numpy as np
-from drag_race.graphics import plot_race
+from drag_race.utils.graphic_utils import plot_race
 from drag_race.utils.upkeep_utils import (collision_check, array_find, dynamics, generate_dynamics, mixed_policy_3d, generate_states,
                                           generate_control_inputs)
 def safety_cost(state, control_input1, control_input2):
