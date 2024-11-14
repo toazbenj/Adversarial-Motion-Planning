@@ -93,7 +93,6 @@ def generate_cost_to_go_adjusted(stage_count, rank_cost1, rank_cost2, safety_cos
     player1_costs = [safety_cost1, rank_cost1]
     player2_costs = [safety_cost2, rank_cost2]
 
-    # issue here, have to index through by state to reach 2D matrices
     num_states = safety_cost1.shape[0]
     player1_errors = [np.zeros(safety_cost1.shape),
                       np.zeros(safety_cost1.shape)]
@@ -104,15 +103,13 @@ def generate_cost_to_go_adjusted(stage_count, rank_cost1, rank_cost2, safety_cos
             state_cost2 = player2_costs[i][state]
             state_error = cost_adjustment(clean_matrix(state_cost1), clean_matrix(state_cost2))
 
-            # each error array in the list is indexed, state index in array is filled
-            # need to remap values from small cleaned matrix to large, new function?
             player1_errors[i][state] = remap_matrix(state_cost1, state_error)
 
     player1_adjusted_costs = add_errors(player1_errors, player1_costs)
 
-    # p1 players pure sec policy of adjusted rank costs, p2 plays pure sec policy of original safety costs
+    # p1 plays pure sec policy of adjusted rank costs, p2 plays pure sec policy of original safety costs
     costs1 = player1_adjusted_costs[1]
-    costs2 = safety_cost2
+    costs2 = rank_cost2
 
     # cost to go calculation
     V1 = np.zeros((stage_count + 2, len(costs1)))
@@ -187,19 +184,19 @@ def build_race(model_path, stage_count, type, rank_penalty_lst, safety_penalty_l
     dynamics = generate_dynamics(states, control_inputs)
 
     match type:
-        case 'mixed':
+        case 'mixed_equilibrium':
             aggressive_policy1, aggressive_policy2 = generate_cost_to_go_mixed(stage_count, rank_cost1, rank_cost2,
                                                                                control_inputs, states)
             conservative_policy1, conservative_policy2 = generate_cost_to_go_mixed(stage_count, safety_cost1,
                                                                                    safety_cost2, control_inputs, states)
 
-        case 'security':
+        case 'security_policies':
             aggressive_policy1, aggressive_policy2 = generate_cost_to_go_security(stage_count, rank_cost1, rank_cost2,
                                                                                   control_inputs, states)
             conservative_policy1, conservative_policy2 = generate_cost_to_go_security(stage_count, safety_cost1,
                                                                                       safety_cost2, control_inputs,
                                                                                       states)
-        case 'adjusted':
+        case 'adjusted_costs':
             aggressive_policy1, aggressive_policy2 = generate_cost_to_go_adjusted(stage_count, rank_cost1, rank_cost2,
                                                                                   safety_cost1, safety_cost2,
                                                                                   control_inputs, states, init_state,
@@ -220,15 +217,15 @@ def build_race(model_path, stage_count, type, rank_penalty_lst, safety_penalty_l
 
 
 if __name__ == '__main__':
-    type = 'adjusted'
-    # type = 'mixed'
-    # type = 'security'
+    type = 'adjusted_costs'
+    # type = 'mixed_equilibrium'
+    # type = 'security_policies'
 
     model_path = "offline_calcs/"+type+"_build.npz"
-    stage_count = 1
+    stage_count = 2
     # maintain speed, decelerate, accelerate, turn, tie, collide
-    rank_penalty_lst = [0, 1, 2, 1, 5, 10]
-    safety_penalty_lst = [0, 1.5, 1.5, 1.5, 2.5, 10]
+    rank_penalty_lst = [2, 3, 0, 1, 5, 10]
+    safety_penalty_lst = [0, 1, 3, 2, 1, 10]
     init_state = np.array([[0, 0],
                            [0, 1],
                            [0, 0]])

@@ -35,13 +35,12 @@ def plot_race(play_path, plot_directory, sample_races):
     plot_pareto_front(average_game_values, pair_labels, plot_directory)
 
 if __name__ == '__main__':
-    type = 'adjusted'
-    # type = 'mixed'
-    # type = 'security'
+    # type = 'adjusted_costs'
+    type = 'mixed_equilibrium'
+    # type = 'security_policies'
 
-    build_path = "offline_calcs/" + type + "_build.npz"
     play_path = "offline_calcs/" + type + "_play.npz"
-    plot_directory = "adjusted_costs"
-    sample_races = 1
+    plot_directory = type
+    sample_races = 10
 
     plot_race(play_path, plot_directory, sample_races)

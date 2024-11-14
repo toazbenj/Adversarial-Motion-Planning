@@ -228,7 +228,7 @@ def pure_nash_policies(A, B):
 
 def security_value(total_cost1, total_cost2, state_lst, stage_count):
     """
-    Find pure security policy game value for every state (approximate mixed nash equilibrium)
+    Find pure security policy game value for every state
     :param total_cost1: 3D cost array of state x control input x control input
     :param total_cost2: 3D cost array of state x control input x control input
     :param state_lst: list of state arrays

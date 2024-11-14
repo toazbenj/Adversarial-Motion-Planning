@@ -91,7 +91,7 @@ def cost_adjustment(A, B):
     # Minimize the objective function (norm of the global potential function)
     # result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', options={'maxiter': 1000})
     result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', hess=None,
-                      options={'maxiter': 1000})
+                      options={'maxiter': 500})
 
     # Debugging output to check if minimization is exiting too early
     print("Optimization Result:")
