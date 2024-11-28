@@ -10,7 +10,7 @@ def cost_adjustment(player1_games, player2_games, global_min_position):
 
         A = player1_games[i]
         B = player2_games[i]
-        Ea = np.zeros_like(A)
+        Eb = np.zeros_like(B)
 
         # global min is pure security policy entry of highest priority game
         # sec_policy1 = np.argmin(np.max(A, axis=1), axis=0)
@@ -23,25 +23,25 @@ def cost_adjustment(player1_games, player2_games, global_min_position):
         if is_valid_exact_potential(A, B, phi_initial, global_min_position):
             print(
                 f"Subgame {i + 1}: Matrices already yield an exact potential function with correct minima. No adjustment needed.")
-            player1_errors.append(Ea)  # Ea remains all zeros
+            player1_errors.append(Eb)  # Ea remains all zeros
             continue  # Skip the optimization step
 
         def objective(E):
-            Ea = E.reshape(A.shape)
-            regularization_term = np.linalg.norm(Ea)
+            Eb = E.reshape(B.shape)
+            regularization_term = np.linalg.norm(Eb)
             return regularization_term
 
         def constraint_global_min_zero(E):
-            Ea = E.reshape(A.shape)
-            A_prime = A + Ea
-            phi = global_potential_function(A_prime, B, global_min_position)
+            Eb = E.reshape(B.shape)
+            B_prime = B + Eb
+            phi = global_potential_function(A, B_prime, global_min_position)
             return phi[global_min_position]**2
 
         def inequality_constraint(E):
 
-            Ea = E.reshape(A.shape)
-            A_prime = A + Ea
-            phi = global_potential_function(A_prime, B, global_min_position)
+            Eb = E.reshape(B.shape)
+            B_prime = B + Eb
+            phi = global_potential_function(A, B_prime, global_min_position)
 
             flat_phi = phi.flatten()
             shape = phi.shape
@@ -58,30 +58,30 @@ def cost_adjustment(player1_games, player2_games, global_min_position):
             """
             Enforce that for each increment in A and B, the increment in phi matches, creating an exact potential.
             """
-            Ea = E.reshape(A.shape)
-            A_prime = A + Ea
-            phi = global_potential_function(A_prime, B, global_min_position)
-            m, n = A.shape
+            Eb = E.reshape(B.shape)
+            B_prime = B + Eb
+            phi = global_potential_function(A, B_prime, global_min_position)
+            m, n = B.shape
             potential_diffs = []
 
             # Check exact potential conditions for Player 1's cost
             for i in range(1, m):
                 for j in range(n):
-                    delta_A = A_prime[i, j] - A_prime[i - 1, j]
+                    delta_A = A[i, j] - A[i - 1, j]
                     delta_phi = phi[i, j] - phi[i - 1, j]
                     potential_diffs.append(delta_phi - delta_A)
 
             # Check exact potential conditions for Player 2's cost
             for i in range(m):
                 for j in range(1, n):
-                    delta_B = B[i, j] - B[i, j - 1]
+                    delta_B = B_prime[i, j] - B_prime[i, j - 1]
                     delta_phi = phi[i, j] - phi[i, j - 1]
                     potential_diffs.append(delta_phi - delta_B)
 
             epsilon = 1e-6
             return np.array(potential_diffs)**2-epsilon
 
-        E_initial = Ea.flatten()
+        E_initial = Eb.flatten()
         constraints = [{'type': 'eq', 'fun': constraint_global_min_zero},
                        {'type': 'ineq', 'fun': inequality_constraint},
                        {'type': 'eq', 'fun': constraint_exact_potential}]
@@ -171,13 +171,13 @@ def is_valid_exact_potential(A, B, phi, global_min_pos=None):
     return True
 
 
-def add_errors(player1_errors, player1_games):
+def add_errors(errors, games):
     """
     Add the computed error tensors to the original cost tensors for Player 1.
     Player 2's costs remain unchanged.
     """
-    player1_adjusted = [player1_games[i] + player1_errors[i] for i in range(len(player1_games))]
-    return player1_adjusted
+    adjusted = [games[i] + errors[i] for i in range(len(games))]
+    return adjusted
 
 
 def compute_column_norm(error_matrices):
@@ -200,12 +200,12 @@ def compute_column_norm(error_matrices):
 
 if __name__ == '__main__':
 
-    A1 = np.array([[3, 4],
-                   [1, 2]])
-    B1 = np.array([[1, 2],
+    A1 = np.array([[2, 2],
                    [3, 4]])
+    B1 = np.array([[4, 3],
+                   [2, 1]])
 
-    A2 = np.array([[1, 2],
+    A2 = np.array([[5, 2],
                    [4, 5]])
     B2 = np.array([[1, 5],
                    [3, 7]])
@@ -218,8 +218,8 @@ if __name__ == '__main__':
                   [10, 2, 8]])
 
     A4 = np.array([
-        [8, 0],
-        [30, 2]])
+        [7, 1],
+        [30, 0]])
     B4 = np.array([
         [8, 30],
         [0, 2]])
@@ -262,40 +262,40 @@ if __name__ == '__main__':
     for k in range(2):
         for j in range(2):
             global_min_pos = (k, j)
-            player1_errors, global_min_positions = cost_adjustment(player1_games, player2_games, global_min_pos)
+            player2_errors, global_min_positions = cost_adjustment(player1_games, player2_games, global_min_pos)
 
             # Compute column-wise norms of the error tensors
-            max_column_norms = compute_column_norm(player1_errors)
+            max_column_norms = compute_column_norm(player2_errors)
 
             # Add errors to Player 1's original costs
-            player1_adjusted_costs = add_errors(player1_errors, player1_games)
+            player2_adjusted_costs = add_errors(player2_errors, player2_games)
 
             # Compute global potential functions based on adjusted costs
             potential_functions = []
-            for i in range(len(player1_adjusted_costs)):
-                potential = global_potential_function(player1_adjusted_costs[i], player2_games[i], global_min_positions[i])
+            for i in range(len(player2_adjusted_costs)):
+                potential = global_potential_function(player1_games[i], player2_adjusted_costs[i],  global_min_positions[i])
                 potential_functions.append(potential)
 
             # Output the error tensors, potential functions, and maximum column-wise norms
             output = {
-                "player1_errors": player1_errors,
+                "player2_errors": player2_errors,
                 "potential_functions": potential_functions,
                 "max_column_norms": max_column_norms
             }
 
             # Formatting the output for better readability
-            for i, (p1_err, phi, max_col_norm) in enumerate(
-                    zip(output['player1_errors'], output['potential_functions'], output['max_column_norms'])):
+            for i, (p2_err, phi, max_col_norm) in enumerate(
+                    zip(output['player2_errors'], output['potential_functions'], output['max_column_norms'])):
                 print(f"Subgame {i + 1}:\n")
-                print(f"Valid exact Potential: {is_valid_exact_potential(player1_adjusted_costs[i],
-                                                                         player2_games[i],
+                print(f"Valid exact Potential: {is_valid_exact_potential(player1_games[i],
+                                                                         player2_adjusted_costs[i],
                                                                          phi)}")
                 global_min_pos = global_min_positions[i]
                 pos = global_min_pos[0] * phi.shape[1] + global_min_pos[1]
                 is_min = ~(np.any(phi.flatten()[:pos] <= phi.flatten()[pos]) or
                         np.any(phi.flatten()[pos + 1:] <= phi.flatten()[pos]))
                 print("Global min enforced: ", (phi[global_min_pos] == 0 and is_min), "\n")
-                print(f"Player 1 Error Tensor:\n{p1_err}\n")
+                print(f"Player 2 Error Tensor:\n{p2_err}\n")
                 print(f"Global Potential Function:\n{phi}\n")
                 print(f"Maximum Column-wise 1-Norm of Error Tensor: {max_col_norm}")
                 print("Global min position: ", global_min_positions[i])
