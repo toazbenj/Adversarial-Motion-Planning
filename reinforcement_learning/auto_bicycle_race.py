@@ -11,7 +11,7 @@ pygame.init()
 WIDTH, HEIGHT = 700, 700
 
 STEER_LIMIT = radians(20)
-VELOCITY_LIMIT = 30
+VELOCITY_LIMIT = 15
 
 # Colors
 WHITE = (255, 255, 255)
@@ -19,6 +19,8 @@ GRAY = (169, 169, 169)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
+YELLOW = (255, 255, 0)
 
 # Create screen
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -48,34 +50,36 @@ steering_angle = 0  # Steering input
 a = 0  # Acceleration
 
 # Constants
-DT = 0.1  # Time step
-STEERING_INCREMENT = radians(0.1)  # Increment for steering angle
-ACCELERATION_INCREMENT = 1  # Increment for acceleration
+DT = 0.05  # Time step
+STEERING_INCREMENT = radians(1)  # Increment for steering angle
+ACCELERATION_INCREMENT = 3  # Increment for acceleration
 
 ACTION_LST = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
-ACTION_INTERVAL = 10
+ACTION_INTERVAL = 100
 
-BOUNDS_WEIGHT = 5
+BOUNDS_WEIGHT = 1000
 COLLISION_WEIGHT = 10
-DISTANCE_WEIGHT = -3 * 1/25
+DISTANCE_WEIGHT = -1 * 1/50
+
+# Add a global list to store the trajectories
+trajectories = []  # Each entry will be a tuple (x_next, y_next)
+cost_arr = np.zeros(len(ACTION_LST))  # Initialize costs variable
 
 
 def dynamics(acc, steering, x_in, y_in, v_in, phi_in, b_in):
-    x_next, y_next, v_next, phi_next, b_next = x_in, y_in, v_in, phi_in, b_in
-
     # Update positions
-    x_next += v_next * cos(phi_next + b_next) * DT
-    y_next += v_next * sin(phi_next + b_next) * DT
+    x_next = x_in + v_in * cos(phi_in + b_in) * DT
+    y_next = y_in + v_in * sin(phi_in + b_in) * DT
 
     # Update heading angle
-    phi_next += (v_next / lr) * sin(b_next) * DT
+    phi_next = phi_in + (v_in / lr) * sin(b_in) * DT
 
     # Update velocity
-    v_next += acc * DT
+    v_next = v_in + acc * DT
     # velocity limit
     if v_next > VELOCITY_LIMIT:
         v_next = VELOCITY_LIMIT
-    v_next= max(0, v_next)  # Prevent negative velocity
+    v_next = max(0, v_next)  # Prevent negative velocity
 
     b_next = atan2(lr * tan(steering), lr + lf)
 
@@ -121,9 +125,6 @@ def calc_radial_distance(new_x, new_y):
     return final_angle - initial_angle
 
 
-from math import atan2, pi
-
-
 def calculate_arc_length(x, y, center_x, center_y, radius):
     # Calculate angular position in radians
     theta = atan2(y - center_y, x - center_x)
@@ -146,9 +147,10 @@ def arc_length_distance(x2, y2):
     return distance
 
 
-
 def action_costs():
-    cost_arr = np.zeros(len(ACTION_LST))
+    global trajectories, cost_arr
+
+    trajectories.clear()  # Clear previous trajectories
 
     for i, action in enumerate(ACTION_LST):
         x_next, y_next, v_next, phi_next, b_next = x, y, v, phi, b
@@ -156,18 +158,20 @@ def action_costs():
         acc = action[0] * ACCELERATION_INCREMENT
         steering = action[1] * STEERING_INCREMENT
 
+        # Simulate trajectory
         for j in range(ACTION_INTERVAL):
             x_next, y_next, v_next, phi_next, b_next = dynamics(acc, steering,
                                                                 x_next, y_next, v_next, phi_next, b_next)
+        # Store trajectory endpoint for visualization
+        trajectories.append((round(x_next, 2), round(y_next, 2)))
 
         bounds_cost = BOUNDS_WEIGHT * check_bounds(x_next, y_next)
         collision_cost = COLLISION_WEIGHT * check_collision(x_next, y_next)
         distance_cost = DISTANCE_WEIGHT * arc_length_distance(x_next, y_next)
 
-        cost_arr[i] = bounds_cost + collision_cost + distance_cost
+        cost_arr[i] = round(bounds_cost + collision_cost + distance_cost, 1)
 
     return cost_arr
-
 
 def action_update(count):
     global a, steering_angle
@@ -175,12 +179,12 @@ def action_update(count):
     if count % ACTION_INTERVAL == 0:
 
         # evaluate action costs
-        costs_arr = action_costs()
-        # print(costs_arr)
-        # pick action with least cost
-        action_index = np.argmin(costs_arr)
+        action_costs()
 
-        # update dynamics
+        # pick action with least cost
+        action_index = np.argmin(cost_arr)
+
+        # # update dynamics
         a = ACTION_LST[action_index][0] * ACCELERATION_INCREMENT
         steering_angle += ACTION_LST[action_index][1] * STEERING_INCREMENT
 
@@ -189,13 +193,26 @@ def action_update(count):
         # phi_choice = int(random.random() * 3) - 1
         # a = a_choice * ACCELERATION_INCREMENT
         # steering_angle += phi_choice * STEERING_INCREMENT
-    else:
-        pass
 
 
 def update_bicycle():
-    global x, y, v, phi, b, steering_angle
+    global x, y, v, phi, b
     x, y, v, phi, b = dynamics(a, steering_angle, x, y, v, phi, b)
+
+
+def draw_trajectories():
+    # Create a font object
+    font = pygame.font.Font(None, 24)  # Default font, size 24
+
+    for i, traj in enumerate(trajectories):
+        x_traj, y_traj = traj
+        if 0 <= x_traj < WIDTH and 0 <= y_traj < HEIGHT:
+            color = YELLOW if check_bounds(x_traj, y_traj) == 0 else RED  # Yellow for out-of-bounds
+            pygame.draw.circle(screen, color, (int(x_traj), int(y_traj)), 5)  # Small dot
+
+            # Render the cost value as text
+            cost_text = font.render(f"{cost_arr[i]:.2f}", True, BLACK)
+            screen.blit(cost_text, (int(x_traj) + 10, int(y_traj) - 10))  # Position next to the dot
 
 
 def draw_racecourse():
@@ -228,6 +245,18 @@ def draw_bicycle():
     ]
     pygame.draw.polygon(screen, BLUE, points)
 
+    # Draw potential trajectories
+    draw_trajectories()
+    draw_chosen_trajectory()  # Highlight the chosen trajectory
+
+
+def draw_chosen_trajectory():
+    # Draw the trajectory for the chosen action
+    global trajectories, a, steering_angle
+    chosen_index = np.argmin(action_costs())
+    chosen_traj = trajectories[chosen_index]
+    pygame.draw.circle(screen, GREEN, (int(chosen_traj[0]), int(chosen_traj[1])), 7)  # Highlight chosen trajectory
+
 
 def main():
     count = 0
@@ -252,7 +281,6 @@ def main():
 
         # Limit frame rate
         clock.tick(60)
-
         count += 1
 
 
