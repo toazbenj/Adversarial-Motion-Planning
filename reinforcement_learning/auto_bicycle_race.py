@@ -1,7 +1,6 @@
 import pygame
 import sys
 from math import cos, sin, tan, atan2, radians, pi, degrees
-import random
 import numpy as np
 
 # Initialize Pygame
@@ -57,7 +56,7 @@ ACCELERATION_INCREMENT = 3  # Increment for acceleration
 ACTION_LST = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
 ACTION_INTERVAL = 100
 
-BOUNDS_WEIGHT = 1000
+BOUNDS_WEIGHT = 100
 COLLISION_WEIGHT = 10
 DISTANCE_WEIGHT = -1 * 1/50
 
@@ -203,12 +202,13 @@ def update_bicycle():
 def draw_trajectories():
     # Create a font object
     font = pygame.font.Font(None, 24)  # Default font, size 24
+    traj_set = set(trajectories)
 
-    for i, traj in enumerate(trajectories):
+    for i, traj in enumerate(traj_set):
         x_traj, y_traj = traj
         if 0 <= x_traj < WIDTH and 0 <= y_traj < HEIGHT:
             color = YELLOW if check_bounds(x_traj, y_traj) == 0 else RED  # Yellow for out-of-bounds
-            pygame.draw.circle(screen, color, (int(x_traj), int(y_traj)), 5)  # Small dot
+            pygame.draw.circle(screen, color, (int(x_traj), int(y_traj)), 3)  # Small dot
 
             # Render the cost value as text
             cost_text = font.render(f"{cost_arr[i]:.2f}", True, BLACK)
