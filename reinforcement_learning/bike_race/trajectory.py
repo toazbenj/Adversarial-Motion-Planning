@@ -1,92 +1,88 @@
 from math import cos, sin, tan, atan2, radians, pi, degrees
 import pygame
 
-BOUNDS_WEIGHT = 100
+# cost weights
+BOUNDS_WEIGHT = 1
 COLLISION_WEIGHT = 10
-DISTANCE_WEIGHT = -1 * 1/50
+DISTANCE_WEIGHT = -1 * 1/1000
 
-
-def check_bounds(new_x, new_y, sim):
-    # Calculate the distance from the center to the point
-    distance_squared = (new_x - sim.center_x) ** 2 + (new_y - sim.center_y) ** 2
-
-    # Check if the distance is between the outer radius and inner radius
-    if sim.inner_radius ** 2 <= distance_squared <= sim.radius ** 2:
-        return 0
-    else:
-        return 1
-
-
-def check_collision(new_x, new_y):
-    return 0
-
-
-def calculate_angle(x_pos, y_pos, center_x, center_y):
-    # Translate point to the circle's center
-    dx = x_pos - center_x
-    dy = y_pos - center_y
-
-    # Calculate angle in radians
-    angle_radians = atan2(dy, dx)
-
-    # # Normalize angle to be in range [0, 2π)
-    angle_radians = (angle_radians + 2 * pi) % (2 * pi)
-
-    # Convert to degrees
-    angle_degrees = degrees(angle_radians)
-
-    return angle_degrees
-
-
-def calc_radial_distance(x1, y1, x2, y2, center_x, center_y):
-    final_angle = calculate_angle(x1, y1, center_x, center_y)
-    initial_angle = calculate_angle(x2, y2, center_x, center_y)
-    print(final_angle - initial_angle)
-    return final_angle - initial_angle
-
-
-def calculate_arc_length(x, y, center_x, center_y, radius):
-    # Calculate angular position in radians
-    theta = atan2(y - center_y, x - center_x)
-    theta = (theta + 2 * pi) % (2 * pi)  # Normalize to [0, 2π)
-
-    # Compute arc length
-    arc_length = theta * radius
-    return arc_length
-
-
-def arc_length_distance(x1, y1, x2, y2, center_x, center_y, radius):
-    # Calculate arc lengths for both points
-    arc1 = calculate_arc_length(x1, y1, center_x, center_y, radius)
-    arc2 = calculate_arc_length(x2, y2, center_x, center_y, radius)
-
-    # Calculate the absolute distance, handling wraparound
-    distance = abs(arc2 - arc1)
-    if distance > pi * radius:  # Adjust for crossing the start/finish line
-        distance = 2 * pi * radius - distance
-    return distance
-
+GREEN = (0, 255, 0)
+YELLOW = (255, 255, 0)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
 
 class Trajectory:
-    def __init__(self):
+    def __init__(self,  course, bike, color):
         self.points = []
         self.cost = 0
-        self.color = (0, 0, 255)
+        self.color = color
+        self.course = course
+        self.bike = bike
 
-    def draw_trajectory(self, screen):
-        for point in self.points:
-            pygame.draw.circle(screen, self.color, point, 5)
+        self.start_x = bike.x
+        self.start_y = bike.y
+        self.length = 0
 
-        # Draw costs near trajectories
-        font = pygame.font.Font(None, 24)
-        cost_text = font.render(f"{self.cost:.2f}", True, self.color)
-        screen.blit(cost_text, (self.points[-1][0] + 10, self.points[-1][0] - 10))
+        self.is_displaying = False
 
-    def cost(self):
-        for point in self.points:
-            x, y = point
+    def draw(self, screen, index=0):
+        """
+          Draw the trajectory and its associated cost on the screen.
+          The index is used to space out cost text to avoid overlapping.
+          """
+        for pt in self.points:
+            pygame.draw.circle(screen, self.color, (pt[0], pt[1]), 1)
 
-            bounds_cost = BOUNDS_WEIGHT * check_bounds(x, y)
-            collision_cost = COLLISION_WEIGHT * check_collision(x, y)
-            distance_cost = DISTANCE_WEIGHT * arc_length_distance(x, y)
-            self.cost += bounds_cost + collision_cost + distance_cost
+        # Draw costs near trajectories with spacing adjustment
+        if self.is_displaying:
+            font = pygame.font.Font(None, 20)
+            cost_text = font.render(f"{round(self.cost):.0f}", True, BLACK)
+            text_x = self.points[-1][0] + 10
+            text_y = self.points[-1][1] - 10
+            screen.blit(cost_text, (text_x, text_y))
+
+    def add_point(self, x, y):
+        bounds_cost = BOUNDS_WEIGHT * self.check_bounds(x, y)
+        if bounds_cost > 0:
+            self.color = RED
+
+        collision_cost = COLLISION_WEIGHT * self.check_collision(x, y)
+
+        self.length = self.calc_arc_length_distance(x, y)
+        distance_cost = DISTANCE_WEIGHT * self.length
+
+        self.cost += round(bounds_cost + collision_cost + distance_cost, 2)
+        self.points.append((round(x, 2), round(y, 2)))
+
+    def check_bounds(self, new_x, new_y):
+        # Calculate the distance from the center to the point
+        distance_squared = (new_x - self.course.center_x) ** 2 + (new_y - self.course.center_y) ** 2
+
+        # Check if the distance is between the outer radius and inner radius
+        if self.course.inner_radius ** 2 <= distance_squared <= self.course.outer_radius ** 2:
+            return 0
+        else:
+            return 1
+
+    def check_collision(self, new_x, new_y):
+        return 0
+
+    def arc_length(self, x, y):
+        # Calculate angular position in radians
+        theta = atan2(y - self.course.center_y, x - self.course.center_x)
+        theta = (theta + 2 * pi) % (2 * pi)  # Normalize to [0, 2π)
+
+        # Compute arc length
+        arc_length = theta * self.course.outer_radius
+        return arc_length
+
+    def calc_arc_length_distance(self, x, y):
+        # Calculate arc lengths for both points
+        arc1 = self.arc_length(self.start_x, self.start_y)
+        arc2 = self.arc_length(x, y)
+
+        # Calculate the absolute distance, handling wraparound
+        distance = abs(arc2 - arc1)
+        if distance > pi * self.course.outer_radius:  # Adjust for crossing the start/finish line
+            distance = 2 * pi * self.course.outer_radius - distance
+        return distance

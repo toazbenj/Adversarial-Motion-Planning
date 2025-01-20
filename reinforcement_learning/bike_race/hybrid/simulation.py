@@ -2,6 +2,8 @@ import pygame
 import sys
 from math import cos, sin, tan, atan2, radians, pi, degrees
 import numpy as np
+from bicycle import Bicycle
+from course import Course
 
 # Initialize Pygame
 pygame.init()
@@ -30,23 +32,16 @@ clock = pygame.time.Clock()
 
 # Circular track parameters
 center_x, center_y = WIDTH // 2, HEIGHT // 2  # Center of the track
-radius = 300  # Radius of the circular track
-inner_radius = radius // 2  # Radius of the inner cutout
+outer_radius = 300  # Radius of the circular track
+inner_radius = outer_radius // 2  # Radius of the inner cutout
 
 # Initial positions for the squares (middle-left of the track)
-middle_left_x = center_x + radius
+middle_left_x = center_x + outer_radius
 middle_left_y = center_y
 
 # Bicycle dynamics variables
 # x, y = WIDTH // 2, HEIGHT // 2
 x, y = middle_left_x - 110,  middle_left_y - 15
-
-v = 0  # Initial velocity
-phi = radians(90)  # Heading angle
-b = 0  # Velocity angle
-lr, lf = 1, 1  # Bicycle parameters (lengths of rear/front axles)
-steering_angle = 0  # Steering input
-a = 0  # Acceleration
 
 # Constants
 DT = 0.05  # Time step
@@ -90,7 +85,7 @@ def check_bounds(new_x, new_y):
     distance_squared = (new_x - center_x) ** 2 + (new_y - center_y) ** 2
 
     # Check if the distance is between the outer radius and inner radius
-    if inner_radius ** 2 <= distance_squared <= radius ** 2:
+    if inner_radius ** 2 <= distance_squared <= outer_radius ** 2:
         return 0
     else:
         return 1
@@ -136,13 +131,13 @@ def calculate_arc_length(x, y, center_x, center_y, radius):
 
 def arc_length_distance(x2, y2):
     # Calculate arc lengths for both points
-    arc1 = calculate_arc_length(x, y, center_x, center_y, radius)
-    arc2 = calculate_arc_length(x2, y2, center_x, center_y, radius)
+    arc1 = calculate_arc_length(x, y, center_x, center_y, outer_radius)
+    arc2 = calculate_arc_length(x2, y2, center_x, center_y, outer_radius)
 
     # Calculate the absolute distance, handling wraparound
     distance = abs(arc2 - arc1)
-    if distance > pi * radius:  # Adjust for crossing the start/finish line
-        distance = 2 * pi * radius - distance
+    if distance > pi * outer_radius:  # Adjust for crossing the start/finish line
+        distance = 2 * pi * outer_radius - distance
     return distance
 
 
@@ -170,8 +165,6 @@ def action_costs():
 
         cost_arr[i] = round(bounds_cost + collision_cost + distance_cost, 1)
 
-        print(f"Trajectory {i}: Cost = {cost_arr[i]}, Points = {(round(x,2), round(y,2))}, {(round(x_next,2), round(y_next,2))}")
-
     return cost_arr
 
 def action_update(count):
@@ -187,14 +180,7 @@ def action_update(count):
 
         # # update dynamics
         a = ACTION_LST[action_index][0] * ACCELERATION_INCREMENT
-        steering_angle = ACTION_LST[action_index][1] * STEERING_INCREMENT
-
-
-def update_bicycle():
-    global x, y, v, phi, b, bike_path
-    x, y, v, phi, b = dynamics(a, steering_angle, x, y, v, phi, b)
-    bike_path.append((x, y))
-
+        steering_angle += ACTION_LST[action_index][1] * STEERING_INCREMENT
 
 def draw_trajectories():
     # Create a font object
@@ -217,38 +203,14 @@ def draw_racecourse():
     screen.fill(WHITE)
 
     # Draw the outer circle
-    pygame.draw.circle(screen, GRAY, (center_x, center_y), radius)
+    pygame.draw.circle(screen, GRAY, (center_x, center_y), outer_radius)
 
     # Draw the inner circle (cutout)
     pygame.draw.circle(screen, WHITE, (center_x, center_y), inner_radius)
 
     # Draw boundaries
-    pygame.draw.circle(screen, BLACK, (center_x, center_y), radius, 3)
+    pygame.draw.circle(screen, BLACK, (center_x, center_y), outer_radius, 3)
     pygame.draw.circle(screen, BLACK, (center_x, center_y), inner_radius, 3)
-
-
-def draw_bicycle():
-    global bike_path
-    bicycle_size = 20
-    # Calculate the rotated rectangle
-    points = [
-        (x + bicycle_size * cos(phi) - bicycle_size / 2 * sin(phi),
-         y + bicycle_size * sin(phi) + bicycle_size / 2 * cos(phi)),
-        (x - bicycle_size * cos(phi) - bicycle_size / 2 * sin(phi),
-         y - bicycle_size * sin(phi) + bicycle_size / 2 * cos(phi)),
-        (x - bicycle_size * cos(phi) + bicycle_size / 2 * sin(phi),
-         y - bicycle_size * sin(phi) - bicycle_size / 2 * cos(phi)),
-        (x + bicycle_size * cos(phi) + bicycle_size / 2 * sin(phi),
-         y + bicycle_size * sin(phi) - bicycle_size / 2 * cos(phi))
-    ]
-    pygame.draw.polygon(screen, BLUE, points)
-
-    for point in bike_path:
-        pygame.draw.circle(screen, GREEN, point, 2)
-
-    # Draw potential trajectories
-    draw_trajectories()
-    draw_chosen_trajectory()  # Highlight the chosen trajectory
 
 
 def draw_chosen_trajectory():
@@ -261,6 +223,8 @@ def draw_chosen_trajectory():
 
 def main():
     count = 0
+    course = Course(center_x, center_y)
+    bike = Bicycle(x=center_x + outer_radius -110, y=center_y-15, course=course)
     while True:
         # Event handling
         for event in pygame.event.get():
@@ -270,11 +234,14 @@ def main():
 
         # Handle input and update dynamics
         action_update(count)
-        update_bicycle()
+
+        bike.update(count)
 
         # Draw everything
         draw_racecourse()
-        draw_bicycle()
+        bike.draw(screen)
+        draw_trajectories()
+        draw_chosen_trajectory()
 
         # Update display
         pygame.display.flip()

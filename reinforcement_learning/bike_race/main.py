@@ -1,6 +1,6 @@
 import pygame
 import sys
-from simulation import Simulation
+from course import Course
 
 pygame.init()
 
@@ -11,7 +11,7 @@ WHITE = (255, 255, 255)
 def main():
     center_x, center_y = WIDTH // 2, HEIGHT // 2  # Center of the track
 
-    simulation = Simulation(center_x, center_y)
+    course = Course(center_x, center_y)
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Bicycle Dynamics Simulation")
 
@@ -25,11 +25,11 @@ def main():
                 sys.exit()
 
         # Update the simulation
-        simulation.update()
+        course.update()
 
         # Draw everything
         screen.fill(WHITE)
-        simulation.draw(screen)
+        course.draw(screen)
         pygame.display.flip()
 
         clock.tick(60)  # Limit frame rate

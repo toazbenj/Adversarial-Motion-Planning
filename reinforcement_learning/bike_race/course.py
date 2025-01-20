@@ -6,9 +6,8 @@ WHITE = (255, 255, 255)
 GRAY = (169, 169, 169)
 BLACK = (0, 0, 0)
 
-class Simulation:
+class Course:
     def __init__(self, center_x, center_y, outer_radius=300, inner_radius=150):
-        self.bicycle = Bicycle(x=300, y=300)  # Initialize bike
         self.count = 0
 
         self.center_x = center_x
@@ -16,6 +15,10 @@ class Simulation:
 
         self.outer_radius = outer_radius
         self.inner_radius = inner_radius
+
+        self.bicycle1 = Bicycle(self, x=center_x + outer_radius - 110, y=center_y - 15)  # Initialize bike
+        self.bicycle2 = Bicycle(self, x=center_x + outer_radius - 80, y=center_y - 15)  # Initialize bike
+
 
     def draw(self, screen):
         # Draw the racecourse
@@ -33,8 +36,12 @@ class Simulation:
         pygame.draw.circle(screen, BLACK, (self.center_x, self.center_y), self.inner_radius, 3)
 
         # Draw the bicycle
-        self.bicycle.draw(screen)
+        self.bicycle1.draw(screen)
+        self.bicycle2.draw(screen)
+
 
     def update(self):
-        self.bicycle.update(self.count)
+        self.bicycle1.update(self.count)
+        self.bicycle2.update(self.count)
+
         self.count += 1
