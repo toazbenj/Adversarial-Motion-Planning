@@ -11,8 +11,29 @@ YELLOW = (255, 255, 0)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 
+def intersect(line1, line2):
+    """
+    Checks if two line segments intersect.
+
+    Args:
+        line1 (list): A list of two tuples representing the endpoints of the first line segment.
+        line2 (list): A list of two tuples representing the endpoints of the second line segment.
+
+    Returns:
+        bool: True if the line segments intersect, False otherwise.
+    """
+
+    def ccw(A, B, C):
+        return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0])
+
+    A, B = line1
+    C, D = line2
+
+    is_same_point = A == C or B == D or A == D or B == C
+    return ccw(A, C, D) != ccw(B, C, D) and ccw(A, B, C) != ccw(A, B, D) or is_same_point
+
 class Trajectory:
-    def __init__(self,  course, bike, color):
+    def __init__(self,  course, bike, color, number=0):
         self.points = []
         self.cost = 0
         self.color = color
@@ -24,6 +45,11 @@ class Trajectory:
         self.length = 0
 
         self.is_displaying = False
+        self.is_chosen = False
+        self.number = number
+
+        self.intersecting_trajectory = []
+
 
     def draw(self, screen, index=0):
         """
@@ -86,3 +112,11 @@ class Trajectory:
         if distance > pi * self.course.outer_radius:  # Adjust for crossing the start/finish line
             distance = 2 * pi * self.course.outer_radius - distance
         return distance
+
+    def trajectory_intersection(self, other_traj):
+        for (pt1, pt2) in zip(self.points[:-2], self.points[1:]):
+            for (pt3, pt4) in zip(other_traj.points[:-2], other_traj.points[1:]):
+
+                if intersect([pt1, pt2], [pt3, pt4]):
+                    self.intersecting_trajectory.append(other_traj)
+

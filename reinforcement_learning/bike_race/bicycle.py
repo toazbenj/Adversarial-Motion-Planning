@@ -40,8 +40,9 @@ def generate_combinations(numbers, num_picks):
 
 
 class Bicycle:
-    def __init__(self, course, x=300, y=300, v=0, phi=radians(90), b=0):
+    def __init__(self, course, x=300, y=300, v=0, color=BLUE, phi=radians(90), b=0):
         self.bicycle_size = 20
+        self.color = color
 
         self.x = x
         self.y = y
@@ -98,7 +99,7 @@ class Bicycle:
             (self.x + self.bicycle_size * cos(self.phi) + self.bicycle_size / 2 * sin(self.phi),
              self.y + self.bicycle_size * sin(self.phi) - self.bicycle_size / 2 * cos(self.phi))
         ]
-        pygame.draw.polygon(screen, BLUE, points)
+        pygame.draw.polygon(screen, self.color, points)
 
         # Draw the past trajectory
         if len(self.past_trajectories) > 1:
@@ -111,6 +112,13 @@ class Bicycle:
 
 
     def update(self, count):
+
+        # allow traj to know possible collisions
+        for i, traj in enumerate(self.choice_trajectories):
+            for other_traj in self.course.bike2.choice_trajectories:
+                if traj.trajectory_intersection(other_traj):
+                    traj.intersecting_trajectory.append(other_traj)
+
         # Periodically compute actions
         if count % (self.action_interval * self.mpc_horizon) == 0:
             self.new_choices()
@@ -124,6 +132,7 @@ class Bicycle:
         # Update the bicycle state
         self.x, self.y, self.v, self.phi, self.b  = self.dynamics(self.a, self.steering_angle, self.x, self.y, self.v, self.phi, self.b)
 
+
     def compute_action(self):
         cost_arr = np.zeros(len(ACTION_LST)**self.mpc_horizon)
         for i, traj in enumerate(self.choice_trajectories):
@@ -131,7 +140,7 @@ class Bicycle:
 
         action_index = np.argmin(cost_arr)
         chosen_traj = self.choice_trajectories[action_index]
-        chosen_traj.color = GREEN
+        chosen_traj.color = self.color
         chosen_traj.is_displaying = False
         self.past_trajectories.append(chosen_traj)
         self.choice_trajectories.remove(chosen_traj)
