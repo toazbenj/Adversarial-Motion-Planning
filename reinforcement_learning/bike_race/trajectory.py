@@ -3,6 +3,8 @@ import pygame
 from fontTools.ttLib.tables.E_B_L_C_ import eblc_index_sub_table_1
 from pygame.midi import midis2events
 
+from reinforcement_learning.auto_bicycle_race import trajectories
+
 # cost weights
 BOUNDS_WEIGHT = 1
 COLLISION_WEIGHT = 100
@@ -107,7 +109,7 @@ class Trajectory:
         self.is_collision_checked = False
         self.number = number
 
-        self.intersecting_trajectory = []
+        self.intersecting_trajectories = []
 
     def draw(self, screen):
         """
@@ -128,7 +130,7 @@ class Trajectory:
             screen.blit(num_text, (text_x, text_y))
 
     def update(self):
-        for other_traj in self.intersecting_trajectory:
+        for other_traj in self.intersecting_trajectories:
             # if other_traj.is_chosen:
             self.cost += COLLISION_WEIGHT
 
@@ -183,7 +185,7 @@ class Trajectory:
             for (pt3, pt4) in zip(other_traj.points[:-2], other_traj.points[1:]):
 
                 if intersect([pt1, pt2], [pt3, pt4]):
-                    self.intersecting_trajectory.append(other_traj)
+                    self.intersecting_trajectories.append(other_traj)
 
 
     def trajectory_intersection_optimized(self, other_traj):
@@ -204,24 +206,7 @@ class Trajectory:
         # If bounding boxes don't overlap, trajectories don't intersect
         if boxes_intersect(box1, box2):
 
-            start1 = self.points[0]
-            start2 = other_traj.points[1]
-            mid1 = self.points[len(self.points)//2]
-            mid2 = other_traj.points[len(self.points)//2]
-            end1 = self.points[-1]
-            end2 = other_traj.points[-1]
-
-            is_intersection = intersect([start1, mid1], [start2, mid2]) or\
-                              intersect([start1, mid1], [mid2, end2]) or\
-                              intersect([mid2, end1], [start2, mid2]) or\
-                              intersect([start1, mid1], [mid2, end2])
-            if is_intersection:
-                self.intersecting_trajectory.append(other_traj)
-                other_traj.intersecting_trajectory.append(self)
-                self.color = ORANGE
-                other_traj.color = ORANGE
-                return True
-
+            # # check if trajectories cross each other for real
             # for (pt1, pt2) in zip(self.points[:-1], self.points[1:]):
             #     for (pt3, pt4) in zip(other_traj.points[:-1], other_traj.points[1:]):
             #         if intersect([pt1, pt2], [pt3, pt4]):
@@ -230,6 +215,24 @@ class Trajectory:
             #             self.color = ORANGE
             #             other_traj.color = ORANGE
             #             return True
+
+            # check if trajectories cross each other for real
+
+            # faster method with larger line segments
+            # length must be multiple of action space size
+            length_interval = 10
+            for i in range(0, len(self.points)-1, length_interval):
+                (pt1, pt2) = self.points[i], self.points[i + length_interval-1]
+
+                for j in range(0, len(other_traj.points)-1, length_interval):
+                    (pt3, pt4) = other_traj.points[j], other_traj.points[j + length_interval-1]
+
+                    if intersect([pt1, pt2], [pt3, pt4]):
+                        self.intersecting_trajectories.append(other_traj)
+                        other_traj.intersecting_trajectories.append(self)
+                        self.color = ORANGE
+                        other_traj.color = ORANGE
+                        return True
         return False
 
 

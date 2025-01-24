@@ -10,7 +10,7 @@ GREEN = (0, 255, 0)
 DARK_GREEN = (0, 150, 0)
 
 class Course:
-    def __init__(self, center_x, center_y, outer_radius=300, inner_radius=150):
+    def __init__(self, center_x, center_y, outer_radius=300, inner_radius=125):
         self.count = 0
 
         self.center_x = center_x
@@ -19,9 +19,11 @@ class Course:
         self.outer_radius = outer_radius
         self.inner_radius = inner_radius
 
-        self.bike1 = Bicycle(self, x=center_x + outer_radius - 110, y=center_y - 15)  # Initialize bike
-        self.bike2 = Bicycle(self, x=center_x + outer_radius - 90, y=center_y + 10, color=GREEN)  # Initialize bike
+        # self.bike1 = Bicycle(self, x=center_x + outer_radius - 110, y=center_y + 10)  # Initialize bike
+        # self.bike2 = Bicycle(self, x=center_x + outer_radius - 90, y=center_y + 10, color=GREEN)  # Initialize bike
 
+        self.bike1 = Bicycle(self, x=center_x + inner_radius +10, y=center_y)  # Initialize bike
+        self.bike2 = Bicycle(self, x=center_x + inner_radius + 10, y=center_y - 50, color=GREEN, velocity_limit=20)  # Initialize bike
 
     def draw(self, screen):
         # Draw the racecourse

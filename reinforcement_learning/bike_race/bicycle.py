@@ -16,7 +16,7 @@ DT = 0.05  # Time step
 STEERING_INCREMENT = radians(1.5)  # Increment for steering angle
 ACCELERATION_INCREMENT = 3  # Increment for acceleration
 STEER_LIMIT = radians(20)
-VELOCITY_LIMIT = 15
+COLLISION_WEIGHT = 10
 
 
 def generate_combinations(numbers, num_picks):
@@ -40,7 +40,7 @@ def generate_combinations(numbers, num_picks):
 
 
 class Bicycle:
-    def __init__(self, course, x=300, y=300, v=0, color=BLUE, phi=radians(90), b=0):
+    def __init__(self, course, x=300, y=300, v=0, color=BLUE, phi=radians(90), b=0, velocity_limit=15):
         self.bicycle_size = 20
         self.color = color
 
@@ -55,12 +55,13 @@ class Bicycle:
 
         self.a = 0
         self.steering_angle = 0
+        self.velocity_limit = velocity_limit
 
         self.past_trajectories = []  # Store past positions
         self.choice_trajectories = [] # upcoming possible traj
         self.action_choices = [] # sequences of actions to create all possible trajectories
         self.chosen_action_sequence = [] # sequence of actions to create chosen trajectory
-        self.action_interval = 50
+        self.action_interval = 70
         self.mpc_horizon = 2
 
         self.course = course
@@ -78,8 +79,8 @@ class Bicycle:
         # Update velocity
         v_next = v_in + acc * DT
         # velocity limit
-        if v_next > VELOCITY_LIMIT:
-            v_next = VELOCITY_LIMIT
+        if v_next > self.velocity_limit:
+            v_next = self.velocity_limit
         v_next = max(0, v_next)  # Prevent negative velocity
 
         b_next = atan2(self.lr * tan(steering), self.lr + self.lf)
@@ -131,11 +132,28 @@ class Bicycle:
         for traj in self.past_trajectories:
             traj.update()
 
+    def build_arr(self, trajectories):
+        size = len(ACTION_LST)**self.mpc_horizon
+        cost_arr = np.zeros((size, size))
+        for i, traj in enumerate(trajectories):
+            cost_row = np.zeros((1, size))
+            cost_row[0, :] = traj.cost
+
+            for other_traj in traj.intersecting_trajectories:
+                cost_row[0][other_traj.number] += COLLISION_WEIGHT
+
+            cost_arr[i] = cost_row
+
+        return cost_arr
+
     def compute_action(self):
-        cost_arr = np.zeros(len(ACTION_LST)**self.mpc_horizon)
-        for i, traj in enumerate(self.choice_trajectories):
-            cost_arr[i] = traj.cost
-        action_index = np.argmin(cost_arr)
+        # cost_arr = np.zeros(len(ACTION_LST)**self.mpc_horizon)
+        # for i, traj in enumerate(self.choice_trajectories):
+        #     cost_arr[i] = traj.cost
+        # action_index = np.argmin(cost_arr)
+
+        cost_arr = self.build_arr(self.choice_trajectories)
+        action_index = np.argmin(np.max(cost_arr, axis=1))
 
         chosen_traj = self.choice_trajectories[action_index]
         chosen_traj.color = self.color

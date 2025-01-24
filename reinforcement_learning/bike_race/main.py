@@ -5,14 +5,14 @@ from course import Course
 pygame.init()
 
 # Screen dimensions
-WIDTH, HEIGHT = 700, 700
+WIDTH, HEIGHT = 1000, 1000
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 
 def main():
     center_x, center_y = WIDTH // 2, HEIGHT // 2  # Center of the track
 
-    course = Course(center_x, center_y)
+    course = Course(center_x, center_y, inner_radius=300, outer_radius=400)
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Bicycle Dynamics Simulation")
 
