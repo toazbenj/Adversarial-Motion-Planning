@@ -107,21 +107,17 @@ class Bicycle:
                 traj.draw(screen)
 
         for i, traj in enumerate(set(self.choice_trajectories)):
-            print(f"Trajectory {i}: Cost = {traj.cost}, Points = {traj.points[0]}, {traj.points[-1]}")
-            traj.draw(screen, index=i)
+            # print(f"Trajectory {i}: Cost = {traj.cost}, Points = {traj.points[0]}, {traj.points[-1]}")
+            traj.draw(screen)
 
+    def update_choices(self, count, other_bike):
+        if count % (self.action_interval * self.mpc_horizon) == 0:
+            self.new_choices(other_bike)
 
-    def update(self, count):
-
-        # allow traj to know possible collisions
-        for i, traj in enumerate(self.choice_trajectories):
-            for other_traj in self.course.bike2.choice_trajectories:
-                if traj.trajectory_intersection(other_traj):
-                    traj.intersecting_trajectory.append(other_traj)
-
+    def update_action(self, count):
         # Periodically compute actions
         if count % (self.action_interval * self.mpc_horizon) == 0:
-            self.new_choices()
+            # self.new_choices()
             self.compute_action()
         # switch actions after action interval elapses
         if count % self.action_interval == 0:
@@ -132,29 +128,30 @@ class Bicycle:
         # Update the bicycle state
         self.x, self.y, self.v, self.phi, self.b  = self.dynamics(self.a, self.steering_angle, self.x, self.y, self.v, self.phi, self.b)
 
+        for traj in self.past_trajectories:
+            traj.update()
 
     def compute_action(self):
         cost_arr = np.zeros(len(ACTION_LST)**self.mpc_horizon)
         for i, traj in enumerate(self.choice_trajectories):
             cost_arr[i] = traj.cost
-
         action_index = np.argmin(cost_arr)
+
         chosen_traj = self.choice_trajectories[action_index]
         chosen_traj.color = self.color
         chosen_traj.is_displaying = False
+        chosen_traj.is_chosen = True
+
         self.past_trajectories.append(chosen_traj)
         self.choice_trajectories.remove(chosen_traj)
         self.chosen_action_sequence = self.action_choices[action_index]
 
-        # self.a = self.chosen_action_sequence[0][0] * ACCELERATION_INCREMENT
-        # self.steering_angle =  self.chosen_action_sequence[0][1] * STEERING_INCREMENT
-        # self.chosen_action_sequence.remove(self.chosen_action_sequence[0])
-
-    def new_choices(self):
+    def new_choices(self, other_bike=None):
         # Precompute trajectories for visualization
         self.choice_trajectories = []
         self.action_choices = generate_combinations(ACTION_LST, self.mpc_horizon)
 
+        count = 0
         for action_sequence in self.action_choices:
             traj = Trajectory(bike=self, course=self.course, color=YELLOW)
             x_temp, y_temp, v_temp, phi_temp, b_temp = self.x, self.y, self.v, self.phi, self.b
@@ -166,5 +163,16 @@ class Bicycle:
                     x_temp, y_temp, v_temp, phi_temp, b_temp = self.dynamics(acc, steering, x_temp, y_temp, v_temp, phi_temp, b_temp)
                     traj.add_point(x_temp, y_temp)
 
+            traj.number = count
             self.choice_trajectories.append(traj)
+            count += 1
 
+        # allow traj to know possible collisions
+        if other_bike is not None and len(other_bike.choice_trajectories) > 0:
+            for traj in self.choice_trajectories:
+                if traj.is_collision_checked:
+                    continue
+                for other_traj in other_bike.choice_trajectories:
+                    if other_traj.is_collision_checked:
+                        continue
+                    traj.trajectory_intersection_optimized(other_traj)

@@ -20,7 +20,7 @@ class Course:
         self.inner_radius = inner_radius
 
         self.bike1 = Bicycle(self, x=center_x + outer_radius - 110, y=center_y - 15)  # Initialize bike
-        self.bike2 = Bicycle(self, x=center_x + outer_radius - 80, y=center_y - 15, color=GREEN)  # Initialize bike
+        self.bike2 = Bicycle(self, x=center_x + outer_radius - 90, y=center_y + 10, color=GREEN)  # Initialize bike
 
 
     def draw(self, screen):
@@ -44,7 +44,9 @@ class Course:
 
 
     def update(self):
-        self.bike1.update(self.count)
-        self.bike2.update(self.count)
+        self.bike1.update_choices(self.count, self.bike2)
+        self.bike2.update_choices(self.count, self.bike1)
+        self.bike1.update_action(self.count)
+        self.bike2.update_action(self.count)
 
         self.count += 1

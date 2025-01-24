@@ -1,15 +1,73 @@
 from math import cos, sin, tan, atan2, radians, pi, degrees
 import pygame
+from fontTools.ttLib.tables.E_B_L_C_ import eblc_index_sub_table_1
+from pygame.midi import midis2events
 
 # cost weights
 BOUNDS_WEIGHT = 1
-COLLISION_WEIGHT = 10
+COLLISION_WEIGHT = 100
 DISTANCE_WEIGHT = -1 * 1/1000
 
 GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
+ORANGE = (255, 130, 80)
+
+def bounding_box(points):
+    """
+    Compute the bounding box of a set of points.
+
+    Args:
+        points (list of tuples): List of points (x, y).
+
+    Returns:
+        tuple: (min_x, min_y, max_x, max_y) defining the bounding box.
+    """
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+def boxes_intersect(box1, box2):
+    """
+    Check if two bounding boxes intersect.
+
+    Args:
+        box1 (tuple): (min_x, min_y, max_x, max_y) for box 1.
+        box2 (tuple): (min_x, min_y, max_x, max_y) for box 2.
+
+    Returns:
+        bool: True if boxes intersect, False otherwise.
+    """
+    return not (box1[2] < box2[0] or box1[0] > box2[2] or
+                box1[3] < box2[1] or box1[1] > box2[3])
+
+
+def intersecting_area(box1, box2):
+    """
+    Calculate the area of intersection between two bounding boxes.
+
+    Args:
+        box1 (tuple): (min_x, min_y, max_x, max_y) for box 1.
+        box2 (tuple): (min_x, min_y, max_x, max_y) for box 2.
+
+    Returns:
+        float: Area of the intersection, or 0 if the boxes do not intersect.
+    """
+    # Calculate the intersection bounds
+    inter_min_x = max(box1[0], box2[0])
+    inter_min_y = max(box1[1], box2[1])
+    inter_max_x = min(box1[2], box2[2])
+    inter_max_y = min(box1[3], box2[3])
+
+    # Compute the width and height of the intersection
+    inter_width = max(0, inter_max_x - inter_min_x)
+    inter_height = max(0, inter_max_y - inter_min_y)
+
+    # Return the intersection area
+    return inter_width * inter_height
+
+
 
 def intersect(line1, line2):
     """
@@ -46,12 +104,12 @@ class Trajectory:
 
         self.is_displaying = False
         self.is_chosen = False
+        self.is_collision_checked = False
         self.number = number
 
         self.intersecting_trajectory = []
 
-
-    def draw(self, screen, index=0):
+    def draw(self, screen):
         """
           Draw the trajectory and its associated cost on the screen.
           The index is used to space out cost text to avoid overlapping.
@@ -63,9 +121,16 @@ class Trajectory:
         if self.is_displaying:
             font = pygame.font.Font(None, 20)
             cost_text = font.render(f"{round(self.cost):.0f}", True, BLACK)
+            num_text = font.render(f"{self.number}", True, BLACK)
             text_x = self.points[-1][0] + 10
             text_y = self.points[-1][1] - 10
-            screen.blit(cost_text, (text_x, text_y))
+
+            screen.blit(num_text, (text_x, text_y))
+
+    def update(self):
+        for other_traj in self.intersecting_trajectory:
+            # if other_traj.is_chosen:
+            self.cost += COLLISION_WEIGHT
 
     def add_point(self, x, y):
         bounds_cost = BOUNDS_WEIGHT * self.check_bounds(x, y)
@@ -119,4 +184,56 @@ class Trajectory:
 
                 if intersect([pt1, pt2], [pt3, pt4]):
                     self.intersecting_trajectory.append(other_traj)
+
+
+    def trajectory_intersection_optimized(self, other_traj):
+        """
+        Check if two trajectories intersect using bounding box filtering.
+
+        Args:
+            other_traj (Trajectory): Another trajectory to check intersection with.
+
+        Returns:
+            bool: True if the trajectories intersect, False otherwise.
+        """
+        # Compute bounding boxes
+
+        box1 = bounding_box(self.points)
+        box2 = bounding_box(other_traj.points)
+
+        # If bounding boxes don't overlap, trajectories don't intersect
+        if boxes_intersect(box1, box2):
+
+            start1 = self.points[0]
+            start2 = other_traj.points[1]
+            mid1 = self.points[len(self.points)//2]
+            mid2 = other_traj.points[len(self.points)//2]
+            end1 = self.points[-1]
+            end2 = other_traj.points[-1]
+
+            is_intersection = intersect([start1, mid1], [start2, mid2]) or\
+                              intersect([start1, mid1], [mid2, end2]) or\
+                              intersect([mid2, end1], [start2, mid2]) or\
+                              intersect([start1, mid1], [mid2, end2])
+            if is_intersection:
+                self.intersecting_trajectory.append(other_traj)
+                other_traj.intersecting_trajectory.append(self)
+                self.color = ORANGE
+                other_traj.color = ORANGE
+                return True
+
+            # for (pt1, pt2) in zip(self.points[:-1], self.points[1:]):
+            #     for (pt3, pt4) in zip(other_traj.points[:-1], other_traj.points[1:]):
+            #         if intersect([pt1, pt2], [pt3, pt4]):
+            #             self.intersecting_trajectory.append(other_traj)
+            #             other_traj.intersecting_trajectory.append(self)
+            #             self.color = ORANGE
+            #             other_traj.color = ORANGE
+            #             return True
+        return False
+
+
+
+
+
 
