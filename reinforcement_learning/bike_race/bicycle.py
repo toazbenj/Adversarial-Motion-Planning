@@ -129,15 +129,13 @@ class Bicycle:
         # Update the bicycle state
         self.x, self.y, self.v, self.phi, self.b  = self.dynamics(self.a, self.steering_angle, self.x, self.y, self.v, self.phi, self.b)
 
-        for traj in self.past_trajectories:
-            traj.update()
-
     def build_arr(self, trajectories):
         size = len(ACTION_LST)**self.mpc_horizon
         cost_arr = np.zeros((size, size))
+
         for i, traj in enumerate(trajectories):
             cost_row = np.zeros((1, size))
-            cost_row[0, :] = traj.cost
+            cost_row[0, :] = traj.total_cost
 
             for other_traj in traj.intersecting_trajectories:
                 cost_row[0][other_traj.number] += COLLISION_WEIGHT
@@ -147,11 +145,6 @@ class Bicycle:
         return cost_arr
 
     def compute_action(self):
-        # cost_arr = np.zeros(len(ACTION_LST)**self.mpc_horizon)
-        # for i, traj in enumerate(self.choice_trajectories):
-        #     cost_arr[i] = traj.cost
-        # action_index = np.argmin(cost_arr)
-
         cost_arr = self.build_arr(self.choice_trajectories)
         action_index = np.argmin(np.max(cost_arr, axis=1))
 
@@ -160,6 +153,9 @@ class Bicycle:
         chosen_traj.is_displaying = False
         chosen_traj.is_chosen = True
 
+        # update costs of last trajectory after other players picked
+        if len(self.past_trajectories) > 0:
+            self.past_trajectories[-1].update()
         self.past_trajectories.append(chosen_traj)
         self.choice_trajectories.remove(chosen_traj)
         self.chosen_action_sequence = self.action_choices[action_index]
@@ -194,3 +190,13 @@ class Bicycle:
                     if other_traj.is_collision_checked:
                         continue
                     traj.trajectory_intersection_optimized(other_traj)
+
+    def get_costs(self):
+        distance, bounds, collision, total = 0, 0, 0, 0
+        for traj in self.past_trajectories:
+            distance += traj.distance_cost
+            bounds += traj.bounds_cost
+            collision += traj.collision_cost
+            total += traj.total_cost
+
+        return distance, bounds, collision, total

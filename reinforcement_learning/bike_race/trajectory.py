@@ -1,12 +1,8 @@
 from math import cos, sin, tan, atan2, radians, pi, degrees
 import pygame
-from fontTools.ttLib.tables.E_B_L_C_ import eblc_index_sub_table_1
-from pygame.midi import midis2events
-
-from reinforcement_learning.auto_bicycle_race import trajectories
 
 # cost weights
-BOUNDS_WEIGHT = 1
+BOUNDS_WEIGHT = 5
 COLLISION_WEIGHT = 100
 DISTANCE_WEIGHT = -1 * 1/1000
 
@@ -92,10 +88,15 @@ def intersect(line1, line2):
     is_same_point = A == C or B == D or A == D or B == C
     return ccw(A, C, D) != ccw(B, C, D) and ccw(A, B, C) != ccw(A, B, D) or is_same_point
 
+
 class Trajectory:
     def __init__(self,  course, bike, color, number=0):
         self.points = []
-        self.cost = 0
+        self.total_cost = 0
+        self.collision_cost = 0
+        self.bounds_cost = 0
+        self.distance_cost = 0
+
         self.color = color
         self.course = course
         self.bike = bike
@@ -122,7 +123,7 @@ class Trajectory:
         # Draw costs near trajectories with spacing adjustment
         if self.is_displaying:
             font = pygame.font.Font(None, 20)
-            cost_text = font.render(f"{round(self.cost):.0f}", True, BLACK)
+            cost_text = font.render(f"{round(self.total_cost):.0f}", True, BLACK)
             num_text = font.render(f"{self.number}", True, BLACK)
             text_x = self.points[-1][0] + 10
             text_y = self.points[-1][1] - 10
@@ -131,20 +132,24 @@ class Trajectory:
 
     def update(self):
         for other_traj in self.intersecting_trajectories:
-            # if other_traj.is_chosen:
-            self.cost += COLLISION_WEIGHT
+            if other_traj.is_chosen:
+                self.collision_cost += COLLISION_WEIGHT
+                self.total_cost = self.bounds_cost  + self.distance_cost + self.collision_cost
 
     def add_point(self, x, y):
-        bounds_cost = BOUNDS_WEIGHT * self.check_bounds(x, y)
-        if bounds_cost > 0:
+        self.bounds_cost += BOUNDS_WEIGHT * self.check_bounds(x, y)
+        if self.bounds_cost > 0:
             self.color = RED
 
-        collision_cost = COLLISION_WEIGHT * self.check_collision(x, y)
+        # collision_cost = COLLISION_WEIGHT * self.check_collision(x, y)
 
         self.length = self.calc_arc_length_distance(x, y)
-        distance_cost = DISTANCE_WEIGHT * self.length
+        self.distance_cost += DISTANCE_WEIGHT * self.length
 
-        self.cost += round(bounds_cost + collision_cost + distance_cost, 2)
+        # self.total_cost += round(bounds_cost + collision_cost + self.distance_cost, 2)
+        # collision cost added in bike class as result of interactions
+        self.total_cost = round(self.bounds_cost  + self.distance_cost, 2)
+
         self.points.append((round(x, 2), round(y, 2)))
 
     def check_bounds(self, new_x, new_y):

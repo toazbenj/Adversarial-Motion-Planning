@@ -22,8 +22,8 @@ class Course:
         # self.bike1 = Bicycle(self, x=center_x + outer_radius - 110, y=center_y + 10)  # Initialize bike
         # self.bike2 = Bicycle(self, x=center_x + outer_radius - 90, y=center_y + 10, color=GREEN)  # Initialize bike
 
-        self.bike1 = Bicycle(self, x=center_x + inner_radius +10, y=center_y)  # Initialize bike
-        self.bike2 = Bicycle(self, x=center_x + inner_radius + 10, y=center_y - 50, color=GREEN, velocity_limit=20)  # Initialize bike
+        self.bike1 = Bicycle(self, x=center_x + inner_radius + 10, y=center_y)  # Initialize bike
+        self.bike2 = Bicycle(self, x=center_x + inner_radius + 10, y=center_y - 150, color=GREEN, velocity_limit=18)  # Initialize bike
 
     def draw(self, screen):
         # Draw the racecourse
@@ -40,6 +40,47 @@ class Course:
         pygame.draw.circle(screen, BLACK, (self.center_x, self.center_y), self.outer_radius, 3)
         pygame.draw.circle(screen, BLACK, (self.center_x, self.center_y), self.inner_radius, 3)
 
+        distance_cost1, bounds_cost1, collision_cost1, total_costs1 = self.bike1.get_costs()
+        distance_cost2, bounds_cost2, collision_cost2, total_costs2 = self.bike2.get_costs()
+
+        # display running costs
+
+        # Display running costs for each bike
+        font = pygame.font.Font(None, 36)  # Font and size
+
+        # Bike 1 costs
+        text_bike1 = font.render("Bike 1 Costs:", True, WHITE)
+        text_bike1_bounds = font.render(f"Bounds Cost: {int(bounds_cost1)}", True, WHITE)
+        text_bike1_distance = font.render(f"Distance Cost: {int(distance_cost1)}", True, WHITE)
+        text_bike1_collision = font.render(f"Collision Cost: {int(collision_cost1)}", True, WHITE)
+        text_bike1_total = font.render(f"Total Cost: {int(total_costs1)}", True, WHITE)
+
+        # Bike 2 costs
+        text_bike2 = font.render("Bike 2 Costs:", True, WHITE)
+        text_bike2_bounds = font.render(f"Bounds Cost: {int(bounds_cost2)}", True, WHITE)
+        text_bike2_distance = font.render(f"Distance Cost: {int(distance_cost2)}", True, WHITE)
+        text_bike2_collision = font.render(f"Collision Cost: {int(collision_cost1)}", True, WHITE)
+        text_bike2_total = font.render(f"Total Cost: {int(total_costs2)}", True, WHITE)
+
+        # Draw the costs on the right side of the screen
+        margin = 20
+        start_y = margin
+        screen_width = screen.get_width()
+
+        # Draw bike 1 costs
+        screen.blit(text_bike1, (screen_width - 300, start_y))
+        screen.blit(text_bike1_bounds, (screen_width - 300, start_y + 40))
+        screen.blit(text_bike1_distance, (screen_width - 300, start_y + 80))
+        screen.blit(text_bike1_collision, (screen_width - 300, start_y + 120))
+        screen.blit(text_bike1_total, (screen_width - 300, start_y + 160))
+
+        # Draw bike 2 costs
+        screen.blit(text_bike2, (screen_width - 300, start_y + 240))
+        screen.blit(text_bike2_bounds, (screen_width - 300, start_y + 280))
+        screen.blit(text_bike2_distance, (screen_width - 300, start_y + 320))
+        screen.blit(text_bike2_collision, (screen_width - 300, start_y + 360))
+        screen.blit(text_bike2_total, (screen_width - 300, start_y + 400))
+
         # Draw the bicycle
         self.bike1.draw(screen)
         self.bike2.draw(screen)
@@ -48,6 +89,7 @@ class Course:
     def update(self):
         self.bike1.update_choices(self.count, self.bike2)
         self.bike2.update_choices(self.count, self.bike1)
+
         self.bike1.update_action(self.count)
         self.bike2.update_action(self.count)
 
