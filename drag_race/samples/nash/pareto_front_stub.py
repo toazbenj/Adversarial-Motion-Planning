@@ -38,7 +38,7 @@ pareto_front = []
 for i in range(len(flattened_payoffs)):
     dominated = False
     for j in range(len(flattened_payoffs)):
-        if all(flattened_payoffs[j] >= flattened_payoffs[i]) and any(flattened_payoffs[j] > flattened_payoffs[i]):
+        if all(flattened_payoffs[j] <= flattened_payoffs[i]) and any(flattened_payoffs[j] < flattened_payoffs[i]):
             dominated = True
             break
     if not dominated:

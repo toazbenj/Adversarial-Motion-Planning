@@ -29,15 +29,15 @@ function [player2_errors, global_min_positions] = cost_adjustment(player1_games,
             continue;
         end
         
-        % Use CVX to solve for Eb that minimizes the norm with constraints
+        % Use CVX to solve for Ea that minimizes the norm with constraints
         cvx_quiet true
         cvx_begin
-            variable Eb(m, n) % Define Eb as an m x n matrix
+            variable Ea(m, n) % Define Ea as an m x n matrix
             variable phi(m, n) % Define phi as an m x n potential function matrix
-            minimize(norm(Eb, 'fro')) % Objective: minimize Frobenius norm of Eb
+            minimize(norm(Ea, 'fro')) % Objective: minimize Frobenius norm of Ea
             
             % Constraint 1: Global minimum position at (0,0) for adjusted potential
-            B_prime = B + Eb;
+            A_prime = A + Ea;
             phi(global_min_position(1), global_min_position(2)) == 0;
             
             % Constraint 2: Non-negativity for potential function
@@ -62,15 +62,15 @@ function [player2_errors, global_min_positions] = cost_adjustment(player1_games,
             end
             for k = 1:m
                 for l = 2:n
-                    delta_B = B_prime(k, l) - B_prime(k, l - 1);
+                    delta_B = A_prime(k, l) - A_prime(k, l - 1);
                     delta_phi = phi(k, l) - phi(k, l - 1);
                     delta_B == delta_phi;
                 end
             end
         cvx_end
         
-        % Store the optimized Eb
-        player2_errors{i} = Eb;
+        % Store the optimized Ea
+        player2_errors{i} = Ea;
     end
 end
 
@@ -157,13 +157,42 @@ B4 = [1, 2;
 %      -1 -1 -1 -1 -1;
 %      -2 -2 -2 -2 -2;
 %      -3 -3 -3 -3 -3
-%      -2 -2 -2 -2 -2;]'
-% B = A'
+%      -2 -2 -2 -2 -2;]
+% B = [0 0 0 0 0; 
+%      -1 -1 -1 -1 -1;
+%      -2 -2 -2 -2 -2;
+%      -3 -3 -3 -3 -3
+%      -2 -2 -2 -1 -1;]'
 
-A = [0 0 0; 
-     -1 -1 -1;
-     0 0 0;]
-B = A'
+% A = [0 0 0; 
+%      -1 -1 -1;
+%      0 0 0;]
+% B = [0 -1 -2; 
+%      0 -1 -2;
+%      0 -1 -1;]
+
+% A = [0 0 0; 
+%      0 0 0;
+%      0 0 0;]
+% B = [0 -1 -2; 
+%      0 -1 -2;
+%      0 -1 -1;]
+
+% A = [3 3 3; 
+%      2 2 2;
+%      1 1 1;]
+
+% A = [0 1 2; 
+%      -1 0 1;
+%      -2 -1 0;]
+% B = -A
+
+% A = [0 0 -1; 0 0 -1; 1 1 0]
+% B = -A
+
+A = [0 2 2 1;-1 0 1 0; -2 0 0 -1; -1 1 1 0]'
+B = -A
+
 % List of test matrices for each subgame
 % player1_games = {A1, A2, A3, A4};
 % player2_games = {B1, B2, B3, B4};
@@ -178,20 +207,20 @@ for i = 1:length(player2_games)
         for j = 1:size(A)
 
             global_min_position = [k, j];
-            player2_errors = cost_adjustment(player1_games, player2_games, global_min_position);
+            player1_errors = cost_adjustment(player1_games, player2_games, global_min_position);
 
             % Add errors to player 1's game matrix
-            player2_adjusted = player2_games{i} + player2_errors{i};
+            player1_adjusted = player1_games{i} + player1_errors{i};
             
             % Compute potential function for adjusted costs
-            potential_functions{i} = global_potential_function_numeric(player1_games{i}, ...
-                                                                       player2_adjusted, ...
+            potential_functions{i} = global_potential_function_numeric(player1_adjusted, ...
+                                                                       player2_games{i}, ...
                                                                        global_min_position);
                 
             % Display test results for each subgame
             fprintf('Subgame %d Results:\n', i);
-            disp('Player 2 Error:');
-            disp(player2_errors{i});
+            disp('Player 1 Error:');
+            disp(player1_errors{i});
             disp('Potential Function:');
             disp(potential_functions{i});
             disp('Global Min:');

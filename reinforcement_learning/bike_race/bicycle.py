@@ -16,7 +16,6 @@ DT = 0.05  # Time step
 STEERING_INCREMENT = radians(1.5)  # Increment for steering angle
 ACCELERATION_INCREMENT = 3  # Increment for acceleration
 STEER_LIMIT = radians(20)
-COLLISION_WEIGHT = 10
 
 
 def generate_combinations(numbers, num_picks):
@@ -133,12 +132,14 @@ class Bicycle:
         size = len(ACTION_LST)**self.mpc_horizon
         cost_arr = np.zeros((size, size))
 
+        print()
+
         for i, traj in enumerate(trajectories):
             cost_row = np.zeros((1, size))
             cost_row[0, :] = traj.total_cost
 
             for other_traj in traj.intersecting_trajectories:
-                cost_row[0][other_traj.number] += COLLISION_WEIGHT
+                cost_row[0][other_traj.number] += traj.collision_weight
 
             cost_arr[i] = cost_row
 

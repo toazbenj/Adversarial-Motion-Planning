@@ -2,9 +2,9 @@ from math import cos, sin, tan, atan2, radians, pi, degrees
 import pygame
 
 # cost weights
-BOUNDS_WEIGHT = 5
+BOUNDS_WEIGHT = 1
 COLLISION_WEIGHT = 100
-DISTANCE_WEIGHT = -1 * 1/1000
+DISTANCE_WEIGHT = -1
 
 GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
@@ -96,6 +96,7 @@ class Trajectory:
         self.collision_cost = 0
         self.bounds_cost = 0
         self.distance_cost = 0
+        self.collision_weight = COLLISION_WEIGHT
 
         self.color = color
         self.course = course
@@ -211,20 +212,18 @@ class Trajectory:
         # If bounding boxes don't overlap, trajectories don't intersect
         if boxes_intersect(box1, box2):
 
-            # # check if trajectories cross each other for real
+            # # # check if trajectories cross each other for real
             # for (pt1, pt2) in zip(self.points[:-1], self.points[1:]):
             #     for (pt3, pt4) in zip(other_traj.points[:-1], other_traj.points[1:]):
             #         if intersect([pt1, pt2], [pt3, pt4]):
-            #             self.intersecting_trajectory.append(other_traj)
-            #             other_traj.intersecting_trajectory.append(self)
+            #             self.intersecting_trajectories.append(other_traj)
+            #             other_traj.intersecting_trajectories.append(self)
             #             self.color = ORANGE
             #             other_traj.color = ORANGE
             #             return True
 
-            # check if trajectories cross each other for real
-
-            # faster method with larger line segments
-            # length must be multiple of action space size
+            # # faster method with larger line segments
+            # length must be multiple of action interval size
             length_interval = 10
             for i in range(0, len(self.points)-1, length_interval):
                 (pt1, pt2) = self.points[i], self.points[i + length_interval-1]
