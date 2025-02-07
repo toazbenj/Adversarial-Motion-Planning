@@ -146,6 +146,8 @@ class Bicycle:
             cost_arr[i] = cost_row
 
         self.cost_arr = cost_arr
+        # np.savez(str(self.color)+'scalar.npz', arr=self.cost_arr)
+
 
     def build_vector_arr(self, trajectories):
         size = len(ACTION_LST) ** self.mpc_horizon
@@ -164,7 +166,8 @@ class Bicycle:
             safety_cost_arr[i] = cost_row_safety
             distance_cost_arr[i] = cost_row_distance
 
-        self.cost_arr = cost_adjustment(distance_cost_arr, self.opponent.cost_arr.transpose())
+        self.cost_arr = cost_adjustment(distance_cost_arr, safety_cost_arr, self.opponent.cost_arr.transpose())
+        np.savez('vector_A.npz', arr=distance_cost_arr)
 
 
     def compute_action(self):

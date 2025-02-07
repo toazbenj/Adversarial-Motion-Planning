@@ -47,11 +47,10 @@ def cost_adjustment(A, B, global_min_position):
     objective = cp.Minimize(cp.norm(E, 'fro'))
     problem = cp.Problem(objective, constraints)
 
-    problem.solve(solver=cp.SCS, max_iters=500, eps=1e-6, verbose=False)
+    problem.solve(solver=cp.SCS, max_iters=50000, eps=1e-6, verbose=False)
     # problem.solve(solver=cp.ECOS, abstol=1e-8, reltol=1e-8, feastol=1e-8, max_iters=10000)
     # problem.solve(solver=cp.GUROBI, verbose=False)
     # problem.solve(solver=cp.MOSEK, mosek_params={'MSK_DPAR_INTPNT_TOL_REL_GAP': 1e-9})
-
 
     return E.value
 
@@ -122,9 +121,12 @@ def is_global_min_enforced(phi, global_min_position):
 # B2 = np.array([[0, 0, 0],
 #                [0, 0, 0],
 #                [0, 0, 1]])
-size = 80
-A1 = np.random.uniform(0, 50, (size, size))
-B1 = np.random.uniform(0, 50, (size, size))
+# size = 30
+# A1 = np.random.uniform(0, 50, (size, size))
+# B1 = np.random.uniform(0, 50, (size, size))
+
+A1 = np.load(('(0, 255, 0)scalar.npz'))['arr']
+B1 = np.load(('(0, 0, 255)scalar.npz'))['arr'].transpose()
 
 # Compute potential functions for adjusted costs
 potential_functions = []
