@@ -205,23 +205,14 @@ class Trajectory:
             bool: True if the trajectories intersect, False otherwise.
         """
         # Compute bounding boxes
+
+
         box1 = bounding_box(self.points)
         box2 = bounding_box(other_traj.points)
 
         # If bounding boxes don't overlap, trajectories don't intersect
         if boxes_intersect(box1, box2):
 
-            # # # check if trajectories cross each other for real
-            # for (pt1, pt2) in zip(self.points[:-1], self.points[1:]):
-            #     for (pt3, pt4) in zip(other_traj.points[:-1], other_traj.points[1:]):
-            #         if intersect([pt1, pt2], [pt3, pt4]):
-            #             self.intersecting_trajectories.append(other_traj)
-            #             other_traj.intersecting_trajectories.append(self)
-            #             self.color = ORANGE
-            #             other_traj.color = ORANGE
-            #             return True
-
-            # # faster method with larger line segments
             # length must be multiple of action interval size
             length_interval = 10
             for i in range(0, len(self.points)-1, length_interval):

@@ -1,4 +1,4 @@
-from math import cos, sin, tan, atan2, radians, pi, degrees
+from math import cos, sin, tan, atan2, radians, pi, degrees, sqrt
 import pygame
 import numpy as np
 from trajectory import Trajectory
@@ -164,18 +164,6 @@ class Bicycle:
             safety_cost_arr[i] = cost_row_safety
             distance_cost_arr[i] = cost_row_distance
 
-        # perform adjustment based on combination of safety and distance
-        # row_mask = np.any(safety_cost_arr != 0, axis=1)
-        #
-        # # Get the first nonzero value in each row (where applicable)
-        # row_values = np.where(row_mask, safety_cost_arr[np.arange(safety_cost_arr.shape[0]), np.argmax(safety_cost_arr != 0, axis=1)], 0)
-        #
-        # # Set entire row to that value
-        # distance_cost_arr[row_mask] = row_values[row_mask, np.newaxis]
-        # cost_arr = distance_cost_arr
-
-        # self.cost_arr = cost_arr
-
         self.cost_arr = cost_adjustment(distance_cost_arr, self.opponent.cost_arr.transpose())
 
 
@@ -220,14 +208,20 @@ class Bicycle:
             self.choice_trajectories.append(traj)
             count += 1
 
+        # check how far away the opponent is
+        if other_bike is not None:
+            is_in_range = sqrt((self.x - other_bike.x) ** 2 + (self.y - other_bike.y) ** 2) < self.action_interval * self.mpc_horizon
+
         # allow traj to know possible collisions
-        if other_bike is not None and len(other_bike.choice_trajectories) > 0:
+        if other_bike is not None and len(other_bike.choice_trajectories) > 0 and is_in_range:
             for traj in self.choice_trajectories:
                 if traj.is_collision_checked:
                     continue
                 for other_traj in other_bike.choice_trajectories:
                     if other_traj.is_collision_checked:
                         continue
+                    other_traj.collision_checked = True
+                    traj.collision_checked = True
                     traj.trajectory_intersection_optimized(other_traj)
 
     def get_costs(self):
