@@ -3,7 +3,7 @@ import pygame
 import numpy as np
 from trajectory import Trajectory
 from itertools import product
-
+from cost_adjust_utils import cost_adjustment
 
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
@@ -39,7 +39,8 @@ def generate_combinations(numbers, num_picks):
 
 
 class Bicycle:
-    def __init__(self, course, x=300, y=300, v=0, color=BLUE, phi=radians(90), b=0, velocity_limit=15):
+    def __init__(self, course, x=300, y=300, v=0, color=BLUE, phi=radians(90), b=0, velocity_limit=15,
+                 is_vector_cost=False, opponent=None):
         self.bicycle_size = 20
         self.color = color
 
@@ -66,6 +67,9 @@ class Bicycle:
         self.course = course
 
         self.new_choices()
+        self.is_vector_cost = is_vector_cost
+        self.opponent = opponent
+        self.cost_arr = None
 
     def dynamics(self, acc, steering, x_in, y_in, v_in, phi_in, b_in):
         # Update positions
@@ -132,8 +136,6 @@ class Bicycle:
         size = len(ACTION_LST)**self.mpc_horizon
         cost_arr = np.zeros((size, size))
 
-        print()
-
         for i, traj in enumerate(trajectories):
             cost_row = np.zeros((1, size))
             cost_row[0, :] = traj.total_cost
@@ -143,11 +145,47 @@ class Bicycle:
 
             cost_arr[i] = cost_row
 
-        return cost_arr
+        self.cost_arr = cost_arr
+
+    def build_vector_arr(self, trajectories):
+        size = len(ACTION_LST) ** self.mpc_horizon
+        safety_cost_arr = np.zeros((size, size))
+        distance_cost_arr = np.zeros((size, size))
+
+        for i, traj in enumerate(trajectories):
+            cost_row_distance = np.zeros((1, size))
+            cost_row_safety = np.zeros((1, size))
+
+            cost_row_distance[0, :] = traj.total_cost
+
+            for other_traj in traj.intersecting_trajectories:
+                cost_row_safety[0][other_traj.number] += traj.collision_weight
+
+            safety_cost_arr[i] = cost_row_safety
+            distance_cost_arr[i] = cost_row_distance
+
+        # perform adjustment based on combination of safety and distance
+        # row_mask = np.any(safety_cost_arr != 0, axis=1)
+        #
+        # # Get the first nonzero value in each row (where applicable)
+        # row_values = np.where(row_mask, safety_cost_arr[np.arange(safety_cost_arr.shape[0]), np.argmax(safety_cost_arr != 0, axis=1)], 0)
+        #
+        # # Set entire row to that value
+        # distance_cost_arr[row_mask] = row_values[row_mask, np.newaxis]
+        # cost_arr = distance_cost_arr
+
+        # self.cost_arr = cost_arr
+
+        self.cost_arr = cost_adjustment(distance_cost_arr, self.opponent.cost_arr.transpose())
+
 
     def compute_action(self):
-        cost_arr = self.build_arr(self.choice_trajectories)
-        action_index = np.argmin(np.max(cost_arr, axis=1))
+        if self.is_vector_cost:
+            self.build_vector_arr(self.choice_trajectories)
+        else:
+            self.build_arr(self.choice_trajectories)
+
+        action_index = np.argmin(np.max(self.cost_arr, axis=1))
 
         chosen_traj = self.choice_trajectories[action_index]
         chosen_traj.color = self.color

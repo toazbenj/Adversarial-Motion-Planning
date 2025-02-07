@@ -4,7 +4,7 @@ import pygame
 # cost weights
 BOUNDS_WEIGHT = 1
 COLLISION_WEIGHT = 100
-DISTANCE_WEIGHT = -1
+DISTANCE_WEIGHT = -1/1000
 
 GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
@@ -205,7 +205,6 @@ class Trajectory:
             bool: True if the trajectories intersect, False otherwise.
         """
         # Compute bounding boxes
-
         box1 = bounding_box(self.points)
         box2 = bounding_box(other_traj.points)
 
@@ -238,9 +237,3 @@ class Trajectory:
                         other_traj.color = ORANGE
                         return True
         return False
-
-
-
-
-
-
