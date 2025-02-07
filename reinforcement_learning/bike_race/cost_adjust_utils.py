@@ -26,7 +26,7 @@ def compute_column_norm(error_matrices):
     return max_column_norms_list
 
 
-def cost_adjustment(A, B):
+def cost_adjustment(A1, A2, B):
     """
     Given lists of 2D cost tensors for Player 1 and Player 2, compute the error tensor such that it can be added to
     Player 1's cost tensor and produce an exact potential function for both players.
@@ -36,19 +36,19 @@ def cost_adjustment(A, B):
     :param player2_games: list of 2D numpy arrays for Player 2
     :return: list of error tensors for Player 1
     """
-    phi_i = np.argmin(np.max(A, axis=1), axis=0)
+    phi_i = np.argmin(np.max(A2, axis=1), axis=0)
     phi_j = np.argmin(np.max(B, axis=0), axis=0)
     phi_indicies = (phi_i, phi_j)
 
     # Initialize error tensor for Player 1
-    Ea = np.zeros_like(A)
+    Ea = np.zeros_like(A1)
 
     # Define the objective function
     def objective(E):
-        Ea = E.reshape(A.shape)
+        Ea = E.reshape(A1.shape)
 
         # Adjusted cost tensors
-        A_prime = A + Ea
+        A_prime = A1 + Ea
 
         # Compute the global potential function
         phi = global_potential_function(A_prime, B)
@@ -60,10 +60,10 @@ def cost_adjustment(A, B):
         return np.linalg.norm(phi) + regularization_term
 
     def inequality_constraint(E):
-        Ea = E.reshape(A.shape)
+        Ea = E.reshape(A1.shape)
 
         # Adjusted cost tensors
-        A_prime = A + Ea
+        A_prime = A1 + Ea
 
         # Compute the global potential function
         phi = global_potential_function(A_prime, B)
@@ -76,10 +76,10 @@ def cost_adjustment(A, B):
         return other_entries- epsilon  # All values > epsilon instead of strictly > 0
 
     def constraint_phi_00(E):
-        Ea = E.reshape(A.shape)
+        Ea = E.reshape(A1.shape)
 
         # Adjusted cost tensors
-        A_prime = A + Ea
+        A_prime = A1 + Ea
 
         # Compute the global potential function
         phi = global_potential_function(A_prime, B)
@@ -97,7 +97,7 @@ def cost_adjustment(A, B):
     # Minimize the objective function (norm of the global potential function)
     # result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', options={'maxiter': 1000})
     result = minimize(objective, E_initial, constraints=constraints, method='trust-constr', hess=None,
-                      options={'maxiter': 1})
+                      options={'maxiter': 500})
 
     # Debugging output to check if minimization is exiting too early
     print("Optimization Result:")
@@ -107,9 +107,9 @@ def cost_adjustment(A, B):
     print("Final Objective Value:", result.fun)  # Check the final value of the objective function
 
     # Extract the optimized error tensor for Player 1
-    Ea_opt = result.x.reshape(A.shape)
+    Ea_opt = result.x.reshape(A1.shape)
 
-    return Ea_opt + A
+    return Ea_opt + A1
 
 
 def global_potential_function(A, B):
@@ -155,16 +155,18 @@ def add_errors(player1_errors, player1_games):
 
 
 if __name__ == '__main__':
-    B1 = np.array([[4, 5],
+    A1 = np.array([[4, 5],
                    [1, 3]])
-    B2 = np.array([[1, 2],
-                   [4, 5]])
+    A2 = np.array([[0, 0],
+                   [0, 1]])
+    B = np.array([[4, 5],
+                   [1, 4]])
 
-    player1_games = [B1]
-    player2_games = [B2]
+    player1_games = [A1]
+    player2_games = [B]
 
     # Compute error tensors for Player 1
-    player1_errors = cost_adjustment(player1_games, player2_games)
+    player1_errors = cost_adjustment(A1,A2,B)
 
     # Compute column-wise norms of the error tensors
     max_column_norms = compute_column_norm(player1_errors)
