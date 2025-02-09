@@ -23,7 +23,7 @@ class Course:
         # self.bike2 = Bicycle(self, x=center_x + outer_radius - 90, y=center_y + 10, color=GREEN)  # Initialize bike
 
         self.bike1 = Bicycle(self, x=center_x + inner_radius + 10, y=center_y)  # Initialize bike
-        self.bike2 = Bicycle(self, x=center_x + inner_radius + 10, y=center_y-100, color=GREEN, is_vector_cost=False, velocity_limit=18, opponent=self.bike1)  # Initialize bike
+        self.bike2 = Bicycle(self, x=center_x + inner_radius + 10, y=center_y-100, color=GREEN, is_vector_cost=False, velocity_limit=20, opponent=self.bike1)  # Initialize bike
 
     def draw(self, screen):
         # Draw the racecourse

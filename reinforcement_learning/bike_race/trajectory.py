@@ -2,7 +2,7 @@ from math import cos, sin, tan, atan2, radians, pi, degrees
 import pygame
 
 # cost weights
-BOUNDS_WEIGHT = 1
+BOUNDS_WEIGHT = 10
 COLLISION_WEIGHT = 100
 DISTANCE_WEIGHT = -1/1000
 
@@ -91,6 +91,12 @@ def intersect(line1, line2):
 
 class Trajectory:
     def __init__(self,  course, bike, color, number=0):
+
+        self.min_x = 10000
+        self.max_x = -10000
+        self.min_y = 10000
+        self.max_y = -10000
+
         self.points = []
         self.total_cost = 0
         self.collision_cost = 0
@@ -112,6 +118,8 @@ class Trajectory:
         self.number = number
 
         self.intersecting_trajectories = []
+        self.point_count = 0
+
 
     def draw(self, screen):
         """
@@ -138,6 +146,13 @@ class Trajectory:
                 self.total_cost = self.bounds_cost  + self.distance_cost + self.collision_cost
 
     def add_point(self, x, y):
+
+        # update min/max of trajectory for bounding boxes
+        self.min_x = min(self.min_x, x)
+        self.max_x = max(self.max_x, x)
+        self.min_y = min(self.min_y, y)
+        self.max_y = max(self.max_y, y)
+
         self.bounds_cost += BOUNDS_WEIGHT * self.check_bounds(x, y)
         if self.bounds_cost > 0:
             self.color = RED
@@ -152,6 +167,10 @@ class Trajectory:
         self.total_cost = round(self.bounds_cost  + self.distance_cost, 2)
 
         self.points.append((round(x, 2), round(y, 2)))
+
+    def get_bounding_box(self):
+        """Retrieve bounding box in O(1)."""
+        return (self.min_x, self.min_y, self.max_x,  self.max_y)
 
     def check_bounds(self, new_x, new_y):
         # Calculate the distance from the center to the point
@@ -205,8 +224,8 @@ class Trajectory:
             bool: True if the trajectories intersect, False otherwise.
         """
         # Compute bounding boxes
-        box1 = bounding_box(self.points)
-        box2 = bounding_box(other_traj.points)
+        box1 = self.get_bounding_box()
+        box2 = other_traj.get_bounding_box()
 
         # If bounding boxes don't overlap, trajectories don't intersect
         if boxes_intersect(box1, box2):

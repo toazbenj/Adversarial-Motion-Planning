@@ -11,6 +11,7 @@ GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
 BLACK = (0, 0, 0)
 
+# acceleration, then steering
 ACTION_LST = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
 DT = 0.05  # Time step
 STEERING_INCREMENT = radians(1)  # Increment for steering angle
@@ -39,7 +40,7 @@ def generate_combinations(numbers, num_picks):
 
 
 class Bicycle:
-    def __init__(self, course, x=300, y=300, v=0, color=BLUE, phi=radians(90), b=0, velocity_limit=15,
+    def __init__(self, course, x=300, y=300, v=5, color=BLUE, phi=radians(90), b=0, velocity_limit=15,
                  is_vector_cost=False, opponent=None):
         self.bicycle_size = 20
         self.color = color
@@ -61,7 +62,7 @@ class Bicycle:
         self.choice_trajectories = [] # upcoming possible traj
         self.action_choices = [] # sequences of actions to create all possible trajectories
         self.chosen_action_sequence = [] # sequence of actions to create chosen trajectory
-        self.action_interval = 70
+        self.action_interval = 40
         self.mpc_horizon = 3
 
         self.course = course
