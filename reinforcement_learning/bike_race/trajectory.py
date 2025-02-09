@@ -205,8 +205,6 @@ class Trajectory:
             bool: True if the trajectories intersect, False otherwise.
         """
         # Compute bounding boxes
-
-
         box1 = bounding_box(self.points)
         box2 = bounding_box(other_traj.points)
 
@@ -214,17 +212,14 @@ class Trajectory:
         if boxes_intersect(box1, box2):
 
             # length must be multiple of action interval size
-            length_interval = action_interval* mpc_horizon
-            for i in range(0, len(self.points)-1, length_interval):
-                (pt1, pt2) = self.points[i], self.points[i + length_interval-1]
+            length_interval = action_interval * mpc_horizon
+            (pt1, pt2) = self.points[0], self.points[length_interval - 1]
+            (pt3, pt4) = other_traj.points[0], other_traj.points[length_interval - 1]
 
-                for j in range(0, len(other_traj.points)-1, length_interval):
-                    (pt3, pt4) = other_traj.points[j], other_traj.points[j + length_interval-1]
-
-                    if intersect([pt1, pt2], [pt3, pt4]):
-                        self.intersecting_trajectories.append(other_traj)
-                        other_traj.intersecting_trajectories.append(self)
-                        self.color = ORANGE
-                        other_traj.color = ORANGE
-                        return True
+            if intersect([pt1, pt2], [pt3, pt4]):
+                self.intersecting_trajectories.append(other_traj)
+                other_traj.intersecting_trajectories.append(self)
+                self.color = ORANGE
+                other_traj.color = ORANGE
+                return True
         return False

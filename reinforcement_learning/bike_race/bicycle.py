@@ -13,7 +13,7 @@ BLACK = (0, 0, 0)
 
 ACTION_LST = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
 DT = 0.05  # Time step
-STEERING_INCREMENT = radians(1.5)  # Increment for steering angle
+STEERING_INCREMENT = radians(1)  # Increment for steering angle
 ACCELERATION_INCREMENT = 3  # Increment for acceleration
 STEER_LIMIT = radians(20)
 
@@ -61,7 +61,7 @@ class Bicycle:
         self.choice_trajectories = [] # upcoming possible traj
         self.action_choices = [] # sequences of actions to create all possible trajectories
         self.chosen_action_sequence = [] # sequence of actions to create chosen trajectory
-        self.action_interval = 40
+        self.action_interval = 70
         self.mpc_horizon = 3
 
         self.course = course
@@ -212,6 +212,7 @@ class Bicycle:
             count += 1
 
         # check how far away the opponent is
+        is_in_range = True
         if other_bike is not None:
             is_in_range = sqrt((self.x - other_bike.x) ** 2 + (self.y - other_bike.y) ** 2) < self.action_interval * self.mpc_horizon
 
