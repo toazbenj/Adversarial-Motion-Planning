@@ -61,8 +61,8 @@ class Bicycle:
         self.choice_trajectories = [] # upcoming possible traj
         self.action_choices = [] # sequences of actions to create all possible trajectories
         self.chosen_action_sequence = [] # sequence of actions to create chosen trajectory
-        self.action_interval = 70
-        self.mpc_horizon = 2
+        self.action_interval = 40
+        self.mpc_horizon = 3
 
         self.course = course
 
@@ -225,7 +225,7 @@ class Bicycle:
                         continue
                     other_traj.collision_checked = True
                     traj.collision_checked = True
-                    traj.trajectory_intersection_optimized(other_traj, self.action_interval)
+                    traj.trajectory_intersection_optimized(other_traj, self.action_interval, self.mpc_horizon)
 
     def get_costs(self):
         distance, bounds, collision, total = 0, 0, 0, 0
