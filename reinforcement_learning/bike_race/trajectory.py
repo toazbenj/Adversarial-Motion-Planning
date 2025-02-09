@@ -194,7 +194,7 @@ class Trajectory:
                     self.intersecting_trajectories.append(other_traj)
 
 
-    def trajectory_intersection_optimized(self, other_traj):
+    def trajectory_intersection_optimized(self, other_traj, action_interval):
         """
         Check if two trajectories intersect using bounding box filtering.
 
@@ -214,7 +214,7 @@ class Trajectory:
         if boxes_intersect(box1, box2):
 
             # length must be multiple of action interval size
-            length_interval = 10
+            length_interval = action_interval // 2
             for i in range(0, len(self.points)-1, length_interval):
                 (pt1, pt2) = self.points[i], self.points[i + length_interval-1]
 

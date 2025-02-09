@@ -225,7 +225,7 @@ class Bicycle:
                         continue
                     other_traj.collision_checked = True
                     traj.collision_checked = True
-                    traj.trajectory_intersection_optimized(other_traj)
+                    traj.trajectory_intersection_optimized(other_traj, self.action_interval)
 
     def get_costs(self):
         distance, bounds, collision, total = 0, 0, 0, 0
