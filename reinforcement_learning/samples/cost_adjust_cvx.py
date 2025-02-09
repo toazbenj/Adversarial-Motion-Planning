@@ -121,12 +121,12 @@ def is_global_min_enforced(phi, global_min_position):
 # B2 = np.array([[0, 0, 0],
 #                [0, 0, 0],
 #                [0, 0, 1]])
-# size = 30
-# A1 = np.random.uniform(0, 50, (size, size))
-# B1 = np.random.uniform(0, 50, (size, size))
+size = 9
+A1 = np.random.uniform(0, 50, (size, size))
+B1 = np.random.uniform(0, 50, (size, size))
 
-A1 = np.load(('(0, 255, 0)scalar.npz'))['arr']
-B1 = np.load(('(0, 0, 255)scalar.npz'))['arr'].transpose()
+# A1 = np.load(('(0, 255, 0)scalar.npz'))['arr']
+# B1 = np.load(('(0, 0, 255)scalar.npz'))['arr'].transpose()
 
 # Compute potential functions for adjusted costs
 potential_functions = []
