@@ -13,8 +13,7 @@ GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
 BLACK = (0, 0, 0)
 
-# acceleration, then steering
-ACTION_LST = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
+
 DT = 0.05  # Time step
 STEERING_INCREMENT = radians(1)  # Increment for steering angle
 ACCELERATION_INCREMENT = 3  # Increment for acceleration
@@ -43,7 +42,7 @@ def generate_combinations(numbers, num_picks):
 
 class Bicycle:
     def __init__(self, course, x=300, y=300, v=5, color=BLUE, phi=radians(90), b=0, velocity_limit=15,
-                 is_vector_cost=False, opponent=None):
+                 is_vector_cost=False, is_relative_cost=False, opponent=None):
         self.bicycle_size = 20
         self.color = color
 
@@ -68,11 +67,14 @@ class Bicycle:
         # best combos: ai = 70, mpc = 2; ai = 40, mpc = 3
         self.action_interval = 70
         self.mpc_horizon = 1
+        # acceleration, then steering
+        self.action_lst = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
 
         self.course = course
 
         self.new_choices()
         self.is_vector_cost = is_vector_cost
+        self.is_relative_cost = is_relative_cost
         self.opponent = opponent
         self.cost_arr = None
 
@@ -138,39 +140,56 @@ class Bicycle:
         self.x, self.y, self.v, self.phi, self.b  = self.dynamics(self.a, self.steering_angle, self.x, self.y, self.v, self.phi, self.b)
 
     def build_arr(self, trajectories):
-        size = len(ACTION_LST)**self.mpc_horizon
+        size = len(self.action_lst)**self.mpc_horizon
         cost_arr = np.zeros((size, size))
 
-        for i, traj in enumerate(trajectories):
-            cost_row = np.zeros((1, size))
-            cost_row[0, :] = traj.total_cost
+        # absolute costs
+        if not self.is_relative_cost:
+            for i, traj in enumerate(trajectories):
+                cost_row = np.zeros((1, size))
+                cost_row[0, :] = traj.total_absolute_cost
 
-            for other_traj in traj.intersecting_trajectories:
-                cost_row[0][other_traj.number] += traj.collision_weight
+                for other_traj in traj.intersecting_trajectories:
+                    cost_row[0][other_traj.number] += traj.collision_weight
 
-            cost_arr[i] = cost_row
+                cost_arr[i, :] = cost_row
+
+        # relative costs
+        else:
+            for i, traj in enumerate(trajectories):
+                cost_arr[i] = traj.total_relative_costs
 
         self.cost_arr = cost_arr
         np.savez('B.npz', arr=self.cost_arr)
 
-
     def build_vector_arr(self, trajectories):
-        size = len(ACTION_LST) ** self.mpc_horizon
+        size = len(self.action_lst) ** self.mpc_horizon
         safety_cost_arr = np.zeros((size, size))
         distance_cost_arr = np.zeros((size, size))
 
-        for i, traj in enumerate(trajectories):
-            cost_row_distance = np.zeros((1, size))
-            cost_row_safety = np.zeros((1, size))
+        # absolute method
+        if not self.is_relative_cost:
+            for i, traj in enumerate(trajectories):
+                cost_row_distance = np.zeros((1, size))
+                cost_row_safety = np.zeros((1, size))
 
-            cost_row_distance[0, :] = traj.distance_cost
-            cost_row_safety[0, :] = traj.bounds_cost
+                cost_row_distance[0, :] = traj.distance_cost
+                cost_row_safety[0, :] = traj.bounds_cost
 
-            for other_traj in traj.intersecting_trajectories:
-                cost_row_safety[0][other_traj.number] += traj.collision_weight
+                for other_traj in traj.intersecting_trajectories:
+                    cost_row_safety[0][other_traj.number] += traj.collision_weight
 
-            safety_cost_arr[i] = cost_row_safety
-            distance_cost_arr[i] = cost_row_distance
+                safety_cost_arr[i] = cost_row_safety
+                distance_cost_arr[i] = cost_row_distance
+
+        # relative costs
+        else:
+            bounds_cost = np.zeros((1, size))
+            for i, traj in enumerate(trajectories):
+                safety_cost_arr[i] = traj.relative_arc_length_costs
+
+                bounds_cost[0,:] = traj.bounds_cost
+                distance_cost_arr[i] = traj.trajectory_proximity_costs + traj.trajectory_overlap_costs + bounds_cost
 
         E = find_adjusted_costs(distance_cost_arr, safety_cost_arr, self.opponent.cost_arr.transpose())
 
@@ -183,8 +202,6 @@ class Bicycle:
 
         np.savez('A1.npz', arr=distance_cost_arr)
         np.savez('A2.npz', arr=safety_cost_arr)
-
-
 
     def compute_action(self):
         if self.is_vector_cost:
@@ -209,7 +226,7 @@ class Bicycle:
     def new_choices(self, other_bike=None):
         # Precompute trajectories for visualization
         self.choice_trajectories = []
-        self.action_choices = generate_combinations(ACTION_LST, self.mpc_horizon)
+        self.action_choices = generate_combinations(self.action_lst, self.mpc_horizon)
 
         count = 0
         for action_sequence in self.action_choices:
@@ -242,7 +259,7 @@ class Bicycle:
                         continue
                     other_traj.collision_checked = True
                     traj.collision_checked = True
-                    traj.trajectory_intersection_optimized(other_traj, self.action_interval, self.mpc_horizon)
+                    traj.trajectory_sensing(other_traj, self.action_interval, self.mpc_horizon)
 
     def get_costs(self):
         distance, bounds, collision, total = 0, 0, 0, 0
@@ -250,6 +267,6 @@ class Bicycle:
             distance += traj.distance_cost
             bounds += traj.bounds_cost
             collision += traj.collision_cost
-            total += traj.total_cost
+            total += traj.total_absolute_cost
 
         return distance, bounds, collision, total

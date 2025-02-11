@@ -1,10 +1,15 @@
-from math import cos, sin, tan, atan2, radians, pi, degrees
+from math import cos, sin, tan, atan2, radians, pi, degrees, sqrt
 import pygame
+import numpy as np
 
 # cost weights
 BOUNDS_WEIGHT = 10
 COLLISION_WEIGHT = 100
 DISTANCE_WEIGHT = -1/1000
+
+RELATIVE_PROGRESS_WEIGHT = 1/5
+PROXIMITY_WEIGHT = 1
+OVERLAP_WEIGHT = 1
 
 GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
@@ -66,7 +71,6 @@ def intersecting_area(box1, box2):
     return inter_width * inter_height
 
 
-
 def intersect(line1, line2):
     """
     Checks if two line segments intersect.
@@ -98,7 +102,7 @@ class Trajectory:
         self.max_y = -10000
 
         self.points = []
-        self.total_cost = 0
+        self.total_absolute_cost = 0
         self.collision_cost = 0
         self.bounds_cost = 0
         self.distance_cost = 0
@@ -107,9 +111,6 @@ class Trajectory:
         self.color = color
         self.course = course
         self.bike = bike
-
-        self.start_x = bike.x
-        self.start_y = bike.y
         self.length = 0
 
         self.is_displaying = False
@@ -118,6 +119,10 @@ class Trajectory:
         self.number = number
 
         self.intersecting_trajectories = []
+        self.trajectory_proximity_costs =  np.zeros((len(self.bike.action_lst) ** self.bike.mpc_horizon))
+        self.trajectory_overlap_costs =  np.zeros((len(self.bike.action_lst) ** self.bike.mpc_horizon))
+        self.relative_arc_length_costs =  np.zeros((len(self.bike.action_lst) ** self.bike.mpc_horizon))
+        self.total_relative_costs = np.zeros((len(self.bike.action_lst) ** self.bike.mpc_horizon))
         self.point_count = 0
 
 
@@ -132,7 +137,7 @@ class Trajectory:
         # Draw costs near trajectories with spacing adjustment
         if self.is_displaying:
             font = pygame.font.Font(None, 20)
-            cost_text = font.render(f"{round(self.total_cost):.0f}", True, BLACK)
+            cost_text = font.render(f"{round(self.total_absolute_cost):.0f}", True, BLACK)
             num_text = font.render(f"{self.number}", True, BLACK)
             text_x = self.points[-1][0] + 10
             text_y = self.points[-1][1] - 10
@@ -143,7 +148,8 @@ class Trajectory:
         for other_traj in self.intersecting_trajectories:
             if other_traj.is_chosen:
                 self.collision_cost += COLLISION_WEIGHT
-                self.total_cost = self.bounds_cost  + self.distance_cost + self.collision_cost
+                self.total_absolute_cost = self.bounds_cost + self.distance_cost + self.collision_cost
+                self.total_relative_cost = self.relative_arc_length_costs + self.trajectory_proximity_costs + self.trajectory_overlap_costs
 
     def add_point(self, x, y):
 
@@ -164,7 +170,7 @@ class Trajectory:
 
         # self.total_cost += round(bounds_cost + collision_cost + self.distance_cost, 2)
         # collision cost added in bike class as result of interactions
-        self.total_cost = round(self.bounds_cost  + self.distance_cost, 2)
+        self.total_absolute_cost = round(self.bounds_cost + self.distance_cost, 2)
 
         self.points.append((round(x, 2), round(y, 2)))
 
@@ -182,9 +188,6 @@ class Trajectory:
         else:
             return 1
 
-    def check_collision(self, new_x, new_y):
-        return 0
-
     def arc_length(self, x, y):
         # Calculate angular position in radians
         theta = atan2(y - self.course.center_y, x - self.course.center_x)
@@ -196,7 +199,7 @@ class Trajectory:
 
     def calc_arc_length_distance(self, x, y):
         # Calculate arc lengths for both points
-        arc1 = self.arc_length(self.start_x, self.start_y)
+        arc1 = self.arc_length(self.bike.x, self.bike.y)
         arc2 = self.arc_length(x, y)
 
         # Calculate the absolute distance, handling wraparound
@@ -213,7 +216,7 @@ class Trajectory:
                     self.intersecting_trajectories.append(other_traj)
 
 
-    def trajectory_intersection_optimized(self, other_traj, action_interval, mpc_horizon):
+    def trajectory_sensing(self, other_traj, action_interval, mpc_horizon):
         """
         Check if two trajectories intersect using bounding box filtering.
 
@@ -223,12 +226,33 @@ class Trajectory:
         Returns:
             bool: True if the trajectories intersect, False otherwise.
         """
+        # relative arc length
+        other_end_pos = other_traj.points[-1]
+        end_pos = self.points[-1]
+
+        arc_length = self.arc_length(end_pos[0], end_pos[1])
+        other_arc_length = self.arc_length(other_end_pos[0], other_end_pos[1])
+
+        # negative is good, incentive
+        relative_arc_length = other_arc_length - arc_length
+        self.relative_arc_length_costs[other_traj.number] = relative_arc_length * RELATIVE_PROGRESS_WEIGHT
+        other_traj.relative_arc_length_costs[self.number] = -relative_arc_length * RELATIVE_PROGRESS_WEIGHT
+
+        # proximity
+        distance = abs(sqrt((end_pos[0]-other_end_pos[0])**2+(end_pos[1]-other_end_pos[1])**2))
+        self.trajectory_proximity_costs[other_traj.number] = distance * PROXIMITY_WEIGHT
+        other_traj.trajectory_proximity_costs[self.number] = distance * PROXIMITY_WEIGHT
+
+        # overlap
         # Compute bounding boxes
         box1 = self.get_bounding_box()
         box2 = other_traj.get_bounding_box()
 
         # If bounding boxes don't overlap, trajectories don't intersect
         if boxes_intersect(box1, box2):
+            area = intersecting_area(box1, box2)
+            self.trajectory_overlap_costs[other_traj.number] = area * OVERLAP_WEIGHT
+            other_traj.trajectory_overlap_costs[self.number] = area * OVERLAP_WEIGHT
 
             # length must be multiple of action interval size
             length_interval = action_interval * mpc_horizon
