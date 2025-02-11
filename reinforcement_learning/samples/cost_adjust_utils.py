@@ -196,8 +196,11 @@ def is_global_min_enforced(phi, global_min_position):
 
 
 if __name__ == '__main__':
-    A1 = np.load(('green_scalar.npz'))['arr']
-    B1 = np.load(('blue_scalar.npz'))['arr'].transpose()
+    # A1 = np.load(('green_scalar.npz'))['arr']
+    # B1 = np.load(('blue_scalar.npz'))['arr'].transpose()
+    size = 9
+    A1 = np.random.uniform(0, 50, (size, size))
+    B1 = np.random.uniform(0, 50, (size, size))
 
     # Compute potential functions for adjusted costs
     potential_functions = []

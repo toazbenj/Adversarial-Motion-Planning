@@ -1,9 +1,15 @@
 import numpy as np
 
 # Load the npz file
-loaded_data = np.load('(0, 0, 255)scalar.npz')
+A1_load = np.load('A1.npz')
+A2_load = np.load('A1.npz')
+B_load = np.load('A1.npz')
 
 # Extract the array
-loaded_arr = loaded_data['arr']
+A1 = A1_load['arr']
+A2 = A2_load['arr']
+B = B_load['arr']
 
-print(loaded_arr)  # Output: [1 2 3 4 5]
+print("A1", A1)
+print("A2", A2)
+print("B", B)

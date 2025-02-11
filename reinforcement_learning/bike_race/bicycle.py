@@ -1,9 +1,11 @@
-from math import cos, sin, tan, atan2, radians, pi, degrees, sqrt
+from math import cos, sin, tan, atan2, radians, sqrt
 import pygame
 import numpy as np
+
+from reinforcement_learning.bike_race.cost_adjust_cvx import find_adjusted_costs
 from trajectory import Trajectory
 from itertools import product
-from cost_adjust_utils import cost_adjustment
+from cost_adjust_cvx import cost_adjustment
 
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
@@ -149,7 +151,7 @@ class Bicycle:
             cost_arr[i] = cost_row
 
         self.cost_arr = cost_arr
-        # np.savez(str(self.color)+'scalar.npz', arr=self.cost_arr)
+        np.savez('B.npz', arr=self.cost_arr)
 
 
     def build_vector_arr(self, trajectories):
@@ -161,7 +163,8 @@ class Bicycle:
             cost_row_distance = np.zeros((1, size))
             cost_row_safety = np.zeros((1, size))
 
-            cost_row_distance[0, :] = traj.total_cost
+            cost_row_distance[0, :] = traj.distance_cost
+            cost_row_safety[0, :] = traj.bounds_cost
 
             for other_traj in traj.intersecting_trajectories:
                 cost_row_safety[0][other_traj.number] += traj.collision_weight
@@ -169,8 +172,18 @@ class Bicycle:
             safety_cost_arr[i] = cost_row_safety
             distance_cost_arr[i] = cost_row_distance
 
-        self.cost_arr = cost_adjustment(distance_cost_arr, safety_cost_arr, self.opponent.cost_arr.transpose())
-        np.savez('vector_A.npz', arr=distance_cost_arr)
+        E = find_adjusted_costs(distance_cost_arr, safety_cost_arr, self.opponent.cost_arr.transpose())
+
+        if E is None:
+            print("no minima")
+            self.cost_arr = distance_cost_arr + safety_cost_arr
+        else:
+            print("adjustment success")
+            self.cost_arr = distance_cost_arr + E
+
+        np.savez('A1.npz', arr=distance_cost_arr)
+        np.savez('A2.npz', arr=safety_cost_arr)
+
 
 
     def compute_action(self):
